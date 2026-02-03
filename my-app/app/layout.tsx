@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { WagmiProvider } from '@/components/providers/WagmiProvider';
 import { LifiProvider } from '@/components/providers/LifiProvider';
+import { ToastProvider } from '@/components/ui/Toast';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 
@@ -23,11 +24,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <WagmiProvider>
           <LifiProvider>
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <ToastProvider>
+              <div className="flex min-h-screen flex-col">
+                <Header />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
+            </ToastProvider>
           </LifiProvider>
         </WagmiProvider>
       </body>

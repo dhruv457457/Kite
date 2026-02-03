@@ -73,7 +73,7 @@ export function ENSSearch({ onSearch, isLoading = false }: ENSSearchProps) {
             {/* Quick suggestions */}
             <div className="mt-4 flex flex-wrap gap-2">
                 <span className="text-sm text-zinc-500">Try:</span>
-                {['vitalik.eth', 'nick.eth', 'brantly.eth'].map((name) => (
+                {['vitalik.eth', 'nick.eth', 'brantly.eth', 'dhruvpancholi.eth'].map((name) => (
                     <button
                         key={name}
                         onClick={() => {
