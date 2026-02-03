@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import type { ENSProfile } from '@/types/ens';
 import { AmountInput } from './AmountInput';
 import { TokenSelector } from './TokenSelector';
@@ -34,8 +34,8 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
     // Fetch user's token balances
     const { balances, isLoading: isLoadingBalances } = useTokenBalance({ address });
 
-    // Prepare recipient chain ID
-    const recipientChainId = React.useMemo(() => {
+    // ✅ Memoize recipient chain ID
+    const recipientChainId = useMemo(() => {
         if (!recipientProfile.preferredChain) return 0;
 
         const chainMap: Record<string, number> = {
@@ -48,23 +48,19 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         return chainMap[recipientProfile.preferredChain.toLowerCase()] || 0;
     }, [recipientProfile.preferredChain]);
 
-    // ✅ FIX: Determine the destination token address based on preferred token
-    const destinationTokenAddress = React.useMemo(() => {
-        // This is a simplified mapping - you should expand this based on actual token addresses per chain
+    // ✅ Memoize destination token address
+    const destinationTokenAddress = useMemo(() => {
         const tokenAddresses: Record<number, Record<string, `0x${string}`>> = {
-            // Base
             8453: {
                 'USDC': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
                 'ETH': '0x0000000000000000000000000000000000000000',
                 'DAI': '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
             },
-            // Arbitrum
             42161: {
                 'USDC': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
                 'ETH': '0x0000000000000000000000000000000000000000',
                 'DAI': '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
             },
-            // Polygon
             137: {
                 'USDC': '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
                 'ETH': '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
@@ -76,36 +72,39 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         return tokenAddresses[recipientChainId]?.[preferredToken] || '0x0000000000000000000000000000000000000000' as `0x${string}`;
     }, [recipientChainId, recipientProfile.preferredToken]);
 
-    // ✅ Generate KiteSafe calldata with recipient parameter
+    // ✅ Memoize parsed amount
+    const parsedAmount = useMemo(() => {
+        if (!amount || !selectedToken) return BigInt(0);
+        try {
+            return parseUnits(amount, selectedToken.decimals);
+        } catch {
+            return BigInt(0);
+        }
+    }, [amount, selectedToken]);
+
+    // ✅ Generate KiteSafe calldata with memoized params
     const { depositCallData, contractAddress } = useKiteSafe({
         chainId: recipientChainId,
-        token: destinationTokenAddress, // ✅ Correct token address for destination chain
-        vault: recipientProfile.depositTarget || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
-        recipient: recipientProfile.address, // ✅ WHO GETS THE VAULT SHARES
-        amount: amount && selectedToken ? parseUnits(amount, selectedToken.decimals) : BigInt(0),
-    });
-
-    // ✅ CRITICAL FIX: Only use KiteSafe if we have BOTH a valid vault AND a valid KiteSafe contract
-    const shouldUseKiteSafe = Boolean(
-        recipientProfile.depositTarget &&
-        recipientProfile.depositTarget !== '0x0000000000000000000000000000000000000000' &&
-        contractAddress &&
-        contractAddress !== '0x0000000000000000000000000000000000000000'
-    );
-
-    console.log('🔍 Debug - KiteSafe params:', {
-        chainId: recipientChainId,
         token: destinationTokenAddress,
-        vault: recipientProfile.depositTarget,
+        vault: recipientProfile.depositTarget || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
         recipient: recipientProfile.address,
-        amount: amount && selectedToken ? parseUnits(amount, selectedToken.decimals).toString() : '0',
-        contractAddress,
-        depositCallData,
-        shouldUseKiteSafe,
+        amount: parsedAmount,
     });
 
-    // ✅ Fetch route from LI.FI with correct parameters
-    const { selectedRoute, isLoading: isLoadingRoute, error: routeError } = useLifiRoute({
+    // ✅ Memoize shouldUseKiteSafe check
+    const shouldUseKiteSafe = useMemo(() => {
+        return Boolean(
+            recipientProfile.depositTarget &&
+            recipientProfile.depositTarget !== '0x0000000000000000000000000000000000000000' &&
+            contractAddress &&
+            contractAddress !== '0x0000000000000000000000000000000000000000' &&
+            depositCallData &&
+            depositCallData !== '0x'
+        );
+    }, [recipientProfile.depositTarget, contractAddress, depositCallData]);
+
+    // ✅ Memoize route request params
+    const routeParams = useMemo(() => ({
         fromToken: selectedToken || {
             address: '0x0000000000000000000000000000000000000000' as `0x${string}`,
             chainId: 1,
@@ -118,55 +117,40 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
             symbol: recipientProfile.preferredToken || 'ETH',
             decimals: 18,
         },
-        fromAmount: amount && selectedToken ? parseUnits(amount, selectedToken.decimals).toString() : '0',
+        fromAmount: parsedAmount.toString(),
         fromAddress: address || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
-
-        // ✅ toAddress is only used for non-contract-call routes
         toAddress: recipientProfile.address,
+        vaultAddress: shouldUseKiteSafe && contractAddress ? contractAddress : undefined,
+        depositCallData: shouldUseKiteSafe && depositCallData && depositCallData !== '0x' ? depositCallData : undefined,
+        enabled: currentStep === 'route' && !!amount && !!selectedToken && parsedAmount > BigInt(0),
+    }), [selectedToken, destinationTokenAddress, recipientChainId, recipientProfile, parsedAmount, address, shouldUseKiteSafe, contractAddress, depositCallData, currentStep, amount]);
 
-        // ✅ CRITICAL FIX: Only set vaultAddress when we have a valid KiteSafe contract
-        // If no KiteSafe, leave undefined (regular transfer, no contract call)
-        vaultAddress: shouldUseKiteSafe && contractAddress
-            ? contractAddress
-            : undefined,
-
-        // ✅ The encoded safeDepositFor call (only if we have valid calldata)
-        depositCallData: shouldUseKiteSafe && depositCallData && depositCallData !== '0x'
-            ? depositCallData
-            : undefined,
-
-        enabled: currentStep === 'route' && !!amount && !!selectedToken,
-    });
-
-    // Log any route errors
-    React.useEffect(() => {
-        if (routeError) {
-            console.error('❌ Route Error:', routeError);
-        }
-    }, [routeError]);
+    // ✅ Fetch route from LI.FI with memoized params
+    const { selectedRoute, isLoading: isLoadingRoute, error: routeError } = useLifiRoute(routeParams);
 
     // Execute route
     const { executeRoute, progress, isExecuting, txHashes, error: executeError } = useLifiExecute();
 
-    const handleTokenSelect = (token: SelectedToken) => {
+    // ✅ Memoized handlers
+    const handleTokenSelect = useCallback((token: SelectedToken) => {
         setSelectedToken(token);
-    };
+    }, []);
 
-    const handleAmountChange = (value: string) => {
+    const handleAmountChange = useCallback((value: string) => {
         setAmount(value);
-    };
+    }, []);
 
-    const handleGetRoute = () => {
+    const handleGetRoute = useCallback(() => {
         if (selectedToken && amount && parseFloat(amount) > 0) {
             setCurrentStep('route');
         }
-    };
+    }, [selectedToken, amount]);
 
-    const handleConfirm = () => {
+    const handleConfirm = useCallback(() => {
         setCurrentStep('confirm');
-    };
+    }, []);
 
-    const handleExecute = async () => {
+    const handleExecute = useCallback(async () => {
         if (!selectedRoute) return;
 
         try {
@@ -181,13 +165,13 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         } catch (error) {
             console.error('Failed to execute route:', error);
         }
-    };
+    }, [selectedRoute, executeRoute]);
 
-    const handleStartOver = () => {
+    const handleStartOver = useCallback(() => {
         setCurrentStep('select');
         setSelectedToken(null);
         setAmount('');
-    };
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -251,7 +235,6 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                         <CardTitle>Select Token & Amount</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {/* Token Selection Button */}
                         <button
                             onClick={() => setIsTokenSelectorOpen(true)}
                             className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-cyan-500 transition-all"
@@ -281,7 +264,6 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                             )}
                         </button>
 
-                        {/* Token Selector Modal */}
                         <TokenSelector
                             isOpen={isTokenSelectorOpen}
                             onClose={() => setIsTokenSelectorOpen(false)}

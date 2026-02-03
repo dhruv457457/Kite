@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { lifiConfig } from '@/lib/lifi/config';
+import { createConfig, EVM } from '@lifi/sdk';
+import { getWalletClient, switchChain } from '@wagmi/core';
+import type { Config } from 'wagmi';
 
 interface LifiContextValue {
     isInitialized: boolean;
@@ -12,10 +14,6 @@ const LifiContext = createContext<LifiContextValue | null>(null);
 
 /**
  * Hook to access LI.FI initialization status
- * 
- * Note: In V3, you don't get a "lifi instance" from this hook.
- * Instead, import functions directly from '@lifi/sdk':
- * - import { getRoutes, executeRoute, getTokens } from '@lifi/sdk'
  */
 export function useLifi(): LifiContextValue {
     const context = useContext(LifiContext);
@@ -26,12 +24,18 @@ export function useLifi(): LifiContextValue {
 }
 
 /**
- * LifiProvider ensures the LI.FI SDK is configured on the client side
+ * LifiProvider with Wagmi integration
  * 
- * In V3, createConfig is called once globally, and all functions
- * (getRoutes, executeRoute, etc.) are imported directly from '@lifi/sdk'
+ * ✅ CRITICAL FIX: In LI.FI SDK v3, you MUST configure providers in createConfig
+ * You cannot pass a signer to executeRoute - the SDK gets the wallet from providers
  */
-export function LifiProvider({ children }: { children: ReactNode }) {
+export function LifiProvider({
+    children,
+    wagmiConfig
+}: {
+    children: ReactNode;
+    wagmiConfig: Config;
+}) {
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
@@ -40,17 +44,42 @@ export function LifiProvider({ children }: { children: ReactNode }) {
         if (typeof window === 'undefined') return;
 
         try {
-            // Simply accessing lifiConfig (which calls createConfig) initializes it
-            if (lifiConfig) {
-                setIsInitialized(true);
-                console.log('✅ LI.FI SDK V3 Configured Successfully');
-            }
+            // ✅ Configure LI.FI SDK with EVM provider using Wagmi
+            createConfig({
+                integrator: 'kite-app',
+                apiUrl: 'https://li.quest/v1',
+                providers: [
+                    EVM({
+                        // ✅ Use Wagmi's getWalletClient to get the active wallet
+                        getWalletClient: async () => {
+                            const walletClient = await getWalletClient(wagmiConfig);
+                            if (!walletClient) {
+                                throw new Error('No wallet connected');
+                            }
+                            return walletClient as any;
+                        },
+                        // ✅ Use Wagmi's switchChain for chain switching
+                        switchChain: async (chainId: number) => {
+                            await switchChain(wagmiConfig, { chainId });
+                            // Return the new wallet client after switching
+                            const walletClient = await getWalletClient(wagmiConfig);
+                            if (!walletClient) {
+                                throw new Error('Failed to get wallet client after chain switch');
+                            }
+                            return walletClient as any;
+                        },
+                    }),
+                ],
+            });
+
+            setIsInitialized(true);
+            console.log('✅ LI.FI SDK V3 Configured Successfully with Wagmi Provider');
         } catch (err) {
             const error = err instanceof Error ? err : new Error('LI.FI initialization failed');
             console.error('❌ LI.FI SDK initialization error:', error);
             setError(error);
         }
-    }, []);
+    }, [wagmiConfig]);
 
     const value: LifiContextValue = {
         isInitialized,

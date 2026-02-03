@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useWalletClient, useSwitchChain } from 'wagmi';
 import { executeRoute as sdkExecuteRoute } from '@lifi/sdk';
 import type { KiteRoute } from '@/lib/lifi/types';
 import {
@@ -25,19 +24,10 @@ interface UseLifiExecuteResult {
 /**
  * Hook to execute LI.FI routes on-chain (V3 SDK)
  * 
- * This hook handles:
- * - Route execution via LI.FI SDK direct import
- * - Progress tracking for each step
- * - Chain switching when needed
- * - Transaction hash collection
- * - Error handling and recovery
+ * ✅ CRITICAL FIX: In SDK v3, executeRoute gets the wallet from providers
+ * configured in createConfig. You DO NOT pass a signer to executeRoute.
  * 
- * In V3, executeRoute is imported directly from '@lifi/sdk'
- * and takes (route, options) where options contains:
- * - signer (walletClient from wagmi)
- * - updateRouteHook, switchChainHook, acceptExchangeRateUpdateHook
- * 
- * @returns Execution functions and state
+ * The providers are configured in LifiProvider with Wagmi integration.
  */
 export default function useLifiExecute(): UseLifiExecuteResult {
     const [isExecuting, setIsExecuting] = useState(false);
@@ -48,9 +38,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
         deposit?: string;
     }>({});
     const [error, setError] = useState<Error | null>(null);
-
-    const { data: walletClient } = useWalletClient();
-    const { switchChainAsync } = useSwitchChain();
 
     /**
      * Update progress for a specific step
@@ -95,17 +82,12 @@ export default function useLifiExecute(): UseLifiExecuteResult {
 
     /**
      * Execute a route on-chain using V3 SDK
+     * 
+     * ✅ NO SIGNER NEEDED: The SDK uses the providers configured in createConfig
      */
     const executeRoute = useCallback(
         async (route: KiteRoute, callbacks?: ExecutionCallbacks) => {
             // Validation
-            if (!walletClient) {
-                const error = new Error('Wallet not connected');
-                setError(error);
-                callbacks?.onError?.(error);
-                return;
-            }
-
             if (!route || !route.steps || route.steps.length === 0) {
                 const error = new Error('Invalid route');
                 setError(error);
@@ -120,16 +102,21 @@ export default function useLifiExecute(): UseLifiExecuteResult {
             setProgress(createInitialProgress(route));
 
             try {
-                // Execute route with V3 SDK - direct function call
-                // Signature: executeRoute(route, options)
-                // Note: The SDK uses wallet providers configured through browser's injected wallet
-                // or through the providers array in createConfig. WalletClient is not passed here.
+                console.log('🚀 Starting route execution with', route.steps.length, 'steps');
+
+                // ✅ Execute route WITHOUT passing a signer
+                // The SDK gets the wallet from the configured EVM provider
                 const result = await sdkExecuteRoute(route, {
                     /**
                      * Update hook: Called for each status update
                      */
                     updateRouteHook: (updatedRoute: any) => {
                         try {
+                            console.log('📡 Route update received:', {
+                                status: updatedRoute.status,
+                                steps: updatedRoute.steps?.length,
+                            });
+
                             // Find current executing step
                             const executingStepIndex = updatedRoute.steps.findIndex(
                                 (step: any) =>
@@ -141,6 +128,8 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                                 const step = updatedRoute.steps[executingStepIndex];
                                 const stepType = getStepType(step);
 
+                                console.log(`⏳ Step ${executingStepIndex + 1} executing:`, stepType);
+
                                 // Update progress
                                 updateStepProgress(
                                     executingStepIndex,
@@ -150,6 +139,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                                 // Collect transaction hash if available
                                 if (step.execution?.process?.[0]?.txHash) {
                                     const txHash = step.execution.process[0].txHash;
+                                    console.log(`✅ Transaction hash for ${stepType}:`, txHash);
                                     collectTxHash(stepType, txHash);
                                     updateStepProgress(executingStepIndex, 'executing', txHash);
                                 }
@@ -164,6 +154,8 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                                     const stepType = getStepType(step);
                                     const txHash = step.execution?.process?.[0]?.txHash;
 
+                                    console.log(`✅ Step ${index + 1} completed:`, stepType);
+
                                     updateStepProgress(index, 'completed', txHash);
 
                                     if (txHash) {
@@ -174,6 +166,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                                 if (step.execution?.status === 'FAILED') {
                                     const errorMsg =
                                         step.execution?.process?.[0]?.error?.message || 'Step failed';
+                                    console.error(`❌ Step ${index + 1} failed:`, errorMsg);
                                     updateStepProgress(index, 'failed', undefined, errorMsg);
                                 }
                             });
@@ -183,31 +176,11 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                     },
 
                     /**
-                     * Chain switch hook: Prompt user to switch chains
-                     */
-                    switchChainHook: async (requiredChainId: number) => {
-                        try {
-                            if (!switchChainAsync) {
-                                throw new Error('Chain switching not supported');
-                            }
-
-                            await switchChainAsync({ chainId: requiredChainId });
-
-                            // Return the walletClient (V3 expects signer back)
-                            return walletClient;
-                        } catch (err) {
-                            throw new Error(
-                                `Failed to switch to chain ${requiredChainId}: ${err instanceof Error ? err.message : 'Unknown error'
-                                }`
-                            );
-                        }
-                    },
-
-                    /**
                      * Exchange rate update hook: Ask user to accept new rate
-                     * SDK passes: { toToken, oldToAmount, newToAmount }
                      */
-                    acceptExchangeRateUpdateHook: async ({ toToken, oldToAmount, newToAmount }) => {
+                    acceptExchangeRateUpdateHook: async (update: any) => {
+                        const { toToken, oldToAmount, newToAmount } = update;
+
                         // Convert amounts to numbers for comparison
                         const oldAmountNum = parseFloat(oldToAmount);
                         const newAmountNum = parseFloat(newToAmount);
@@ -222,6 +195,8 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                         const message = isIncrease
                             ? `Exchange rate improved by ${percentChange}%. You'll receive ${newAmountNum} ${toToken.symbol} instead of ${oldAmountNum}. Accept new rate?`
                             : `Exchange rate decreased by ${percentChange}%. You'll receive ${newAmountNum} ${toToken.symbol} instead of ${oldAmountNum}. Continue anyway?`;
+
+                        console.log('⚠️ Exchange rate update:', message);
 
                         // In production, you might want to show a modal instead
                         const accepted = window.confirm(message);
@@ -246,13 +221,15 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                     });
                 }
 
+                console.log('✅ Route execution completed successfully');
+
                 // Success callback
                 callbacks?.onSuccess?.(result);
             } catch (err) {
                 const error =
                     err instanceof Error ? err : new Error('Transaction execution failed');
 
-                console.error('Execution error:', error);
+                console.error('❌ Execution error:', error);
                 setError(error);
 
                 // Mark current step as failed
@@ -271,7 +248,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                 setIsExecuting(false);
             }
         },
-        [walletClient, switchChainAsync, progress, updateStepProgress, collectTxHash]
+        [progress, updateStepProgress, collectTxHash]
     );
 
     /**

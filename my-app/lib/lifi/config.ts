@@ -1,4 +1,4 @@
-import { createConfig, getTokens, type ChainId, type Token } from '@lifi/sdk';
+import { getTokens, type ChainId, type Token } from '@lifi/sdk';
 
 /**
  * Custom RPC URLs for each supported chain
@@ -27,20 +27,6 @@ const RPC_URLS: Record<number, string> = {
  * Supported chain IDs for Kite
  */
 export const SUPPORTED_CHAINS: ChainId[] = [1, 8453, 42161, 137];
-
-/**
- * LI.FI SDK Configuration
- * 
- * Initialize the LI.FI SDK globally using V3 pattern.
- * This setup happens once and is shared by all functions.
- * In V3, functions like getRoutes, getTokens are imported directly from '@lifi/sdk'
- */
-export const lifiConfig = createConfig({
-    integrator: 'kite-app',
-    apiUrl: 'https://li.quest/v1',
-    rpcUrls: RPC_URLS,
-    chains: SUPPORTED_CHAINS as any, // Type cast for SDK compatibility
-});
 
 /**
  * Default route options to use when fetching routes
