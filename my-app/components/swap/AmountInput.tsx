@@ -76,15 +76,15 @@ export function AmountInput({
     return (
         <div className="space-y-4">
             {/* Amount Input */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="bg-white border border-silver rounded-xl p-6 shadow-soft">
                 <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-zinc-400">Amount</label>
+                    <label className="text-sm font-medium text-slate">Amount</label>
                     {selectedToken && (
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleMaxClick}
-                            className="text-cyan-400 hover:text-cyan-300"
+                            className="text-cyber-yellow hover:text-cyber-yellow-dark font-semibold"
                         >
                             Max
                         </Button>
@@ -105,19 +105,19 @@ export function AmountInput({
                             }
                         }}
                         disabled={!selectedToken}
-                        className="flex-1 bg-transparent text-3xl font-semibold text-white focus:outline-none placeholder-zinc-700"
+                        className="flex-1 bg-transparent text-3xl font-semibold text-charcoal focus:outline-none placeholder-slate/30"
                     />
 
                     {selectedToken && (
-                        <div className="px-4 py-2 bg-zinc-800 rounded-lg">
-                            <span className="font-medium text-white">{selectedToken.symbol}</span>
+                        <div className="px-4 py-2 bg-light-grey rounded-lg border border-silver">
+                            <span className="font-medium text-charcoal">{selectedToken.symbol}</span>
                         </div>
                     )}
                 </div>
 
                 {/* Balance Display */}
                 {selectedToken && (
-                    <div className="mt-3 text-sm text-zinc-500">
+                    <div className="mt-3 text-sm text-slate">
                         Balance: {formattedBalance} {selectedToken.symbol}
                         {selectedToken.balanceUSD && (
                             <span className="ml-2">(${selectedToken.balanceUSD})</span>
@@ -127,7 +127,7 @@ export function AmountInput({
 
                 {/* Error Message */}
                 {(localError || error) && (
-                    <div className="mt-3 text-sm text-red-400">
+                    <div className="mt-3 text-sm text-red-500 font-medium">
                         {localError || error}
                     </div>
                 )}
@@ -135,21 +135,21 @@ export function AmountInput({
 
             {/* Estimated Output */}
             {selectedToken && recipientProfile && amount && !localError && !error && (
-                <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
+                <div className="bg-cyber-yellow/10 border border-cyber-yellow/30 rounded-lg p-4 shadow-soft">
                     <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 text-cyber-yellow flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="flex-1">
-                            <p className="text-sm text-cyan-400">
+                            <p className="text-sm text-charcoal">
                                 <strong>You send:</strong> {amount} {selectedToken.symbol} on {selectedToken.chainName}
                             </p>
-                            <p className="text-sm text-cyan-400 mt-1">
+                            <p className="text-sm text-charcoal mt-1">
                                 <strong>{recipientProfile.name} receives:</strong> ~{amount}{' '}
                                 {recipientProfile.preferredToken || selectedToken.symbol} on{' '}
                                 {recipientProfile.preferredChain || selectedToken.chainName}
                             </p>
-                            <p className="text-xs text-cyan-500 mt-2">
+                            <p className="text-xs text-slate mt-2">
                                 Exact amount will be calculated in the next step
                             </p>
                         </div>
@@ -159,11 +159,11 @@ export function AmountInput({
 
             {/* No Token Selected State */}
             {!selectedToken && (
-                <div className="text-center py-8 text-zinc-500">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="text-center py-8 text-slate">
+                    <svg className="w-12 h-12 mx-auto mb-3 text-slate/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm">Select a token to continue</p>
+                    <p className="text-sm text-charcoal font-medium">Select a token to continue</p>
                 </div>
             )}
         </div>

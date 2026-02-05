@@ -17,20 +17,20 @@ export function Button({
   ...props
 }: ButtonProps) {
   const baseStyles = 'font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2';
-  
+
   const variants = {
-    primary: 'bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-500/25',
-    secondary: 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700',
-    ghost: 'bg-transparent hover:bg-zinc-800 text-zinc-300 border border-transparent hover:border-zinc-700',
-    danger: 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25',
+    primary: 'bg-cyber-yellow hover:bg-cyber-yellow-dark text-charcoal shadow-soft hover:shadow-yellow-glow',
+    secondary: 'bg-white hover:bg-light-grey text-charcoal border border-silver hover:border-charcoal shadow-soft',
+    ghost: 'bg-transparent hover:bg-light-grey text-charcoal border border-transparent',
+    danger: 'bg-red-500 hover:bg-red-600 text-white shadow-soft',
   };
-  
+
   const sizes = {
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2 text-base',
     lg: 'px-6 py-3 text-lg',
   };
-  
+
   return (
     <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}

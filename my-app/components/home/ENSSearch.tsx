@@ -72,7 +72,7 @@ export function ENSSearch({ onSearch, isLoading = false }: ENSSearchProps) {
 
             {/* Quick suggestions */}
             <div className="mt-4 flex flex-wrap gap-2">
-                <span className="text-sm text-zinc-500">Try:</span>
+                <span className="text-sm text-slate">Try:</span>
                 {['vitalik.eth', 'nick.eth', 'brantly.eth', 'dhruvpancholi.eth'].map((name) => (
                     <button
                         key={name}
@@ -80,7 +80,7 @@ export function ENSSearch({ onSearch, isLoading = false }: ENSSearchProps) {
                             setSearchValue(name);
                             setError('');
                         }}
-                        className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                        className="text-sm text-cyber-yellow hover:text-cyber-yellow-dark transition-colors font-medium"
                     >
                         {name}
                     </button>

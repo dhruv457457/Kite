@@ -29,11 +29,8 @@ export default function useLifiRoute(
     const [error, setError] = useState<Error | null>(null);
     const [selectedRoute, setSelectedRoute] = useState<KiteRoute | null>(null);
 
-    // ✅ Use ref to track if we're currently fetching to prevent duplicate calls
     const isFetchingRef = useRef(false);
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-    // ✅ Track previous request to avoid unnecessary refetches
     const prevRequestRef = useRef<string>('');
 
     const {
@@ -48,32 +45,39 @@ export default function useLifiRoute(
         enabled = true,
     } = options;
 
-    // ✅ Memoize the request key to detect actual changes
+    // ✅ CRITICAL: Ensure fromAmount is a clean string with no formatting
+    const normalizedFromAmount = useMemo(() => {
+        if (!fromAmount) return '0';
+        // Remove any commas, spaces, or formatting
+        const cleaned = fromAmount.toString().replace(/[,\s]/g, '');
+        // Ensure it's a valid number string
+        return /^\d+$/.test(cleaned) ? cleaned : '0';
+    }, [fromAmount]);
+
     const requestKey = useMemo(() => {
         return JSON.stringify({
             fromChain: fromToken?.chainId,
             toChain: toToken?.chainId,
             fromToken: fromToken?.address,
             toToken: toToken?.address,
-            amount: fromAmount,
+            amount: normalizedFromAmount, // Use normalized amount
             fromAddress,
             toAddress,
             vault: vaultAddress,
             calldata: depositCallData,
             slippage,
         });
-    }, [fromToken, toToken, fromAmount, fromAddress, toAddress, vaultAddress, depositCallData, slippage]);
+    }, [fromToken, toToken, normalizedFromAmount, fromAddress, toAddress, vaultAddress, depositCallData, slippage]);
 
-    // ✅ Memoize validation check
     const isValidRequest = useMemo(() => {
         try {
-            if (!fromToken || !toToken || !fromAmount || fromAmount === '0' || !fromAddress || !toAddress) {
+            if (!fromToken || !toToken || !normalizedFromAmount || normalizedFromAmount === '0' || !fromAddress || !toAddress) {
                 return false;
             }
             validateRouteRequest({
                 fromToken,
                 toToken,
-                fromAmount,
+                fromAmount: normalizedFromAmount, // Use normalized amount
                 fromAddress,
                 toAddress,
                 vaultAddress,
@@ -84,17 +88,14 @@ export default function useLifiRoute(
         } catch {
             return false;
         }
-    }, [fromToken, toToken, fromAmount, fromAddress, toAddress, vaultAddress, depositCallData, slippage]);
+    }, [fromToken, toToken, normalizedFromAmount, fromAddress, toAddress, vaultAddress, depositCallData, slippage]);
 
-    // ✅ Stable fetchRoutes function with proper dependency management
     const fetchRoutes = useCallback(async () => {
-        // Prevent duplicate fetches
         if (isFetchingRef.current) {
             console.log('⏭️ Skipping fetch - already in progress');
             return;
         }
 
-        // Check if request actually changed
         if (requestKey === prevRequestRef.current) {
             console.log('⏭️ Skipping fetch - request unchanged');
             return;
@@ -115,7 +116,6 @@ export default function useLifiRoute(
 
             let fetchedRoutes: Route[] = [];
 
-            // ✅ Check if we have valid KiteSafe params
             const shouldUseKiteSafe = Boolean(
                 vaultAddress &&
                 vaultAddress !== '0x0000000000000000000000000000000000000000' &&
@@ -123,18 +123,16 @@ export default function useLifiRoute(
                 depositCallData !== '0x'
             );
 
+            console.log('🔍 Fetching route with fromAmount:', normalizedFromAmount);
+
             if (shouldUseKiteSafe) {
                 console.log('🔄 Using contract call route (KiteSafe)');
 
-                // ✅ Runtime check to satisfy TypeScript
                 if (!vaultAddress || !depositCallData) {
                     throw new Error('KiteSafe parameters unexpectedly undefined');
                 }
 
                 try {
-                    // ✅ CRITICAL FIX: Use getQuote with contractCalls instead of getContractCallsQuote
-                    // getQuote returns a proper Route object that can be executed directly
-                    // getContractCallsQuote returns a Quote object that causes "Cannot read properties of undefined" errors
                     console.log('📋 Getting executable contract call quote...');
 
                     const quote = await getQuote({
@@ -142,15 +140,14 @@ export default function useLifiRoute(
                         toChain: toToken.chainId,
                         fromToken: fromToken.address,
                         toToken: toToken.address,
-                        fromAmount: fromAmount,
+                        fromAmount: normalizedFromAmount, // ✅ Use normalized amount
                         fromAddress: fromAddress,
                         toAddress: toAddress,
-                        // ✅ Pass contract calls in the quote request
                         contractCalls: [
                             {
                                 toContractAddress: vaultAddress as string,
                                 toContractCallData: depositCallData as string,
-                                fromAmount: fromAmount,
+                                fromAmount: normalizedFromAmount, // ✅ Use normalized amount here too
                                 fromTokenAddress: toToken.address,
                                 toContractGasLimit: '500000',
                             },
@@ -162,16 +159,11 @@ export default function useLifiRoute(
                     });
 
                     console.log('✅ Contract call quote received');
-                    console.log('🔍 Quote structure:', {
-                        id: quote.id,
-                        stepsCount: quote.steps?.length,
-                        toAmount: quote.toAmount,
-                        gasCostUSD: quote.gasCostUSD,
-                    });
 
-                    // ✅ getQuote returns a proper Route object - no conversion needed!
                     if (quote && typeof quote === 'object' && quote.steps) {
+                        // ✅ Store the original quote with exact fromAmount
                         fetchedRoutes = [quote as Route];
+                        console.log('✅ Quote fromAmount stored:', (quote as any).fromAmount);
                     } else {
                         throw new Error('Invalid quote response from LI.FI');
                     }
@@ -184,7 +176,7 @@ export default function useLifiRoute(
                         toChainId: toToken.chainId,
                         fromTokenAddress: fromToken.address,
                         toTokenAddress: toToken.address,
-                        fromAmount: fromAmount,
+                        fromAmount: normalizedFromAmount, // ✅ Use normalized amount
                         fromAddress: fromAddress,
                         toAddress: toAddress,
                         options: {
@@ -203,7 +195,7 @@ export default function useLifiRoute(
                     toChainId: toToken.chainId,
                     fromTokenAddress: fromToken.address,
                     toTokenAddress: toToken.address,
-                    fromAmount: fromAmount,
+                    fromAmount: normalizedFromAmount, // ✅ Use normalized amount
                     fromAddress: fromAddress,
                     toAddress: toAddress,
                     options: {
@@ -240,24 +232,9 @@ export default function useLifiRoute(
             );
             const sortedRoutes = sortRoutesByBest(formattedRoutes);
 
-            // ✅ Debug: Log the first route to see its structure
             if (sortedRoutes.length > 0) {
                 const firstRoute = sortedRoutes[0];
-                console.log('🔍 First route structure:', {
-                    id: firstRoute.id,
-                    stepsCount: firstRoute.steps?.length,
-                    gasCostUSD: firstRoute.gasCostUSD,
-                    toAmount: firstRoute.toAmount,
-                    toToken: firstRoute.toToken,
-                    steps: firstRoute.steps?.map(s => ({
-                        type: s.type,
-                        tool: s.toolDetails?.name,
-                        estimate: {
-                            toAmount: s.estimate?.toAmount,
-                            gasCosts: s.estimate?.gasCosts?.map(gc => gc.amountUSD),
-                        }
-                    })),
-                });
+                console.log('🔍 Selected route fromAmount:', (firstRoute as any).fromAmount);
             }
 
             setRoutes(sortedRoutes);
@@ -273,9 +250,8 @@ export default function useLifiRoute(
             setIsLoading(false);
             isFetchingRef.current = false;
         }
-    }, [requestKey, isValidRequest, fromToken, toToken, fromAmount, fromAddress, toAddress, vaultAddress, depositCallData, slippage]);
+    }, [requestKey, isValidRequest, fromToken, toToken, normalizedFromAmount, fromAddress, toAddress, vaultAddress, depositCallData, slippage]);
 
-    // ✅ Debounced fetch with cleanup
     const debouncedFetch = useCallback(() => {
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
@@ -286,7 +262,6 @@ export default function useLifiRoute(
         }, 500);
     }, [fetchRoutes]);
 
-    // ✅ Effect with proper cleanup and dependencies
     useEffect(() => {
         if (!enabled || !isValidRequest) {
             return;
@@ -312,7 +287,7 @@ export default function useLifiRoute(
     );
 
     const refetch = useCallback(() => {
-        prevRequestRef.current = ''; // Clear cache to force refetch
+        prevRequestRef.current = '';
         fetchRoutes();
     }, [fetchRoutes]);
 

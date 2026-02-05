@@ -21,14 +21,6 @@ interface UseLifiExecuteResult {
     reset: () => void;
 }
 
-/**
- * Hook to execute LI.FI routes on-chain (V3 SDK)
- * 
- * ✅ CRITICAL FIX: In SDK v3, executeRoute gets the wallet from providers
- * configured in createConfig. You DO NOT pass a signer to executeRoute.
- * 
- * The providers are configured in LifiProvider with Wagmi integration.
- */
 export default function useLifiExecute(): UseLifiExecuteResult {
     const [isExecuting, setIsExecuting] = useState(false);
     const [progress, setProgress] = useState<ExecutionProgress | null>(null);
@@ -39,9 +31,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
     }>({});
     const [error, setError] = useState<Error | null>(null);
 
-    /**
-     * Update progress for a specific step
-     */
     const updateStepProgress = useCallback(
         (
             stepIndex: number,
@@ -70,9 +59,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
         []
     );
 
-    /**
-     * Collect transaction hash by step type
-     */
     const collectTxHash = useCallback((type: 'swap' | 'bridge' | 'deposit', hash: string) => {
         setTxHashes((prev) => ({
             ...prev,
@@ -80,11 +66,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
         }));
     }, []);
 
-    /**
-     * Execute a route on-chain using V3 SDK
-     * 
-     * ✅ NO SIGNER NEEDED: The SDK uses the providers configured in createConfig
-     */
     const executeRoute = useCallback(
         async (route: KiteRoute, callbacks?: ExecutionCallbacks) => {
             // Validation
@@ -95,6 +76,14 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                 return;
             }
 
+            // ✅ CRITICAL: Log the route we're about to execute
+            console.log('🚀 Executing route:', {
+                id: route.id,
+                fromAmount: (route as any).fromAmount,
+                steps: route.steps.length,
+                firstStepAction: route.steps[0]?.action,
+            });
+
             // Reset state
             setIsExecuting(true);
             setError(null);
@@ -104,12 +93,9 @@ export default function useLifiExecute(): UseLifiExecuteResult {
             try {
                 console.log('🚀 Starting route execution with', route.steps.length, 'steps');
 
-                // ✅ Execute route WITHOUT passing a signer
-                // The SDK gets the wallet from the configured EVM provider
+                // ✅ CRITICAL: Pass the route object EXACTLY as received from getQuote/getRoutes
+                // DO NOT modify route.fromAmount or any step amounts
                 const result = await sdkExecuteRoute(route, {
-                    /**
-                     * Update hook: Called for each status update
-                     */
                     updateRouteHook: (updatedRoute: any) => {
                         try {
                             console.log('📡 Route update received:', {
@@ -130,13 +116,11 @@ export default function useLifiExecute(): UseLifiExecuteResult {
 
                                 console.log(`⏳ Step ${executingStepIndex + 1} executing:`, stepType);
 
-                                // Update progress
                                 updateStepProgress(
                                     executingStepIndex,
                                     'executing'
                                 );
 
-                                // Collect transaction hash if available
                                 if (step.execution?.process?.[0]?.txHash) {
                                     const txHash = step.execution.process[0].txHash;
                                     console.log(`✅ Transaction hash for ${stepType}:`, txHash);
@@ -144,7 +128,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                                     updateStepProgress(executingStepIndex, 'executing', txHash);
                                 }
 
-                                // Call user callback
                                 callbacks?.onStepUpdate?.(executingStepIndex, 'executing');
                             }
 
@@ -175,17 +158,12 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                         }
                     },
 
-                    /**
-                     * Exchange rate update hook: Ask user to accept new rate
-                     */
                     acceptExchangeRateUpdateHook: async (update: any) => {
                         const { toToken, oldToAmount, newToAmount } = update;
 
-                        // Convert amounts to numbers for comparison
                         const oldAmountNum = parseFloat(oldToAmount);
                         const newAmountNum = parseFloat(newToAmount);
 
-                        // Calculate percentage change
                         const percentChange = Math.abs(
                             ((newAmountNum - oldAmountNum) / oldAmountNum) * 100
                         ).toFixed(2);
@@ -198,7 +176,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
 
                         console.log('⚠️ Exchange rate update:', message);
 
-                        // In production, you might want to show a modal instead
                         const accepted = window.confirm(message);
 
                         if (!accepted) {
@@ -208,9 +185,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                         return accepted;
                     },
 
-                    /**
-                     * Infinite approval: Always return false to use exact approval amounts
-                     */
                     infiniteApproval: false,
                 });
 
@@ -223,7 +197,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
 
                 console.log('✅ Route execution completed successfully');
 
-                // Success callback
                 callbacks?.onSuccess?.(result);
             } catch (err) {
                 const error =
@@ -232,7 +205,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                 console.error('❌ Execution error:', error);
                 setError(error);
 
-                // Mark current step as failed
                 if (progress) {
                     updateStepProgress(
                         progress.currentStep,
@@ -242,7 +214,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                     );
                 }
 
-                // Error callback
                 callbacks?.onError?.(error);
             } finally {
                 setIsExecuting(false);
@@ -251,9 +222,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
         [progress, updateStepProgress, collectTxHash]
     );
 
-    /**
-     * Reset execution state
-     */
     const reset = useCallback(() => {
         setIsExecuting(false);
         setProgress(null);

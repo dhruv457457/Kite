@@ -94,18 +94,18 @@ export function TokenSelector({ isOpen, onClose, onSelect }: TokenSelectorProps)
                     )}
 
                     {error && (
-                        <div className="text-center py-8 text-red-400">
+                        <div className="text-center py-8 text-red-500">
                             <p>Failed to load balances</p>
-                            <p className="text-sm text-zinc-500 mt-2">{error.message}</p>
+                            <p className="text-sm text-slate mt-2">{error.message}</p>
                         </div>
                     )}
 
                     {!isLoading && !error && filteredBalances.length === 0 && (
-                        <div className="text-center py-8 text-zinc-500">
-                            <svg className="w-16 h-16 mx-auto mb-4 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="text-center py-8 text-slate">
+                            <svg className="w-16 h-16 mx-auto mb-4 text-slate/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                             </svg>
-                            <p className="text-lg font-medium">No tokens found</p>
+                            <p className="text-lg font-medium text-charcoal">No tokens found</p>
                             <p className="text-sm mt-1">
                                 {searchQuery ? 'Try a different search' : 'Your wallet has no balance'}
                             </p>
@@ -116,10 +116,10 @@ export function TokenSelector({ isOpen, onClose, onSelect }: TokenSelectorProps)
                         <div key={chainId}>
                             {/* Chain Header */}
                             <div className="flex items-center gap-2 mb-2 px-2">
-                                <div className="text-sm font-medium text-zinc-400">
+                                <div className="text-sm font-medium text-slate">
                                     {getChainNameFromId(Number(chainId))}
                                 </div>
-                                <div className="flex-1 h-px bg-zinc-800" />
+                                <div className="flex-1 h-px bg-silver" />
                             </div>
 
                             {/* Tokens in this chain */}
@@ -137,10 +137,10 @@ export function TokenSelector({ isOpen, onClose, onSelect }: TokenSelectorProps)
                                             key={`${balance.chainId}-${balance.token.address}`}
                                             onClick={() => handleSelect(balance)}
                                             className={`
-                        w-full p-3 rounded-lg border transition-all
+                        w-full p-3 rounded-lg border transition-all shadow-soft
                         ${hasBalance
-                                                    ? 'bg-zinc-800/50 border-zinc-700 hover:border-cyan-500 hover:bg-zinc-800'
-                                                    : 'bg-zinc-900/50 border-zinc-800 opacity-60 cursor-not-allowed'
+                                                    ? 'bg-white border-silver hover:border-cyber-yellow hover:shadow-yellow-glow'
+                                                    : 'bg-light-grey border-silver opacity-60 cursor-not-allowed'
                                                 }
                       `}
                                             disabled={!hasBalance}
@@ -148,26 +148,26 @@ export function TokenSelector({ isOpen, onClose, onSelect }: TokenSelectorProps)
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
                                                     {/* Token Icon Placeholder */}
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyber-yellow to-cyber-yellow-dark flex items-center justify-center text-charcoal font-bold shadow-soft">
                                                         {balance.token.symbol.charAt(0)}
                                                     </div>
 
                                                     <div className="text-left">
-                                                        <div className="font-medium text-white">
+                                                        <div className="font-medium text-charcoal">
                                                             {balance.token.symbol}
                                                         </div>
-                                                        <div className="text-sm text-zinc-500">
+                                                        <div className="text-sm text-slate">
                                                             {balance.chainName}
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="text-right">
-                                                    <div className="font-medium text-white">
+                                                    <div className="font-medium text-charcoal">
                                                         {formattedBalance}
                                                     </div>
                                                     {balance.balanceUSD && (
-                                                        <div className="text-sm text-zinc-500">
+                                                        <div className="text-sm text-slate">
                                                             ${balance.balanceUSD}
                                                         </div>
                                                     )}

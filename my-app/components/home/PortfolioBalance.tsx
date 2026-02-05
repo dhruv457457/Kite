@@ -72,9 +72,9 @@ export function PortfolioBalance() {
                     <CardTitle>Portfolio Balance</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-8 text-red-400">
+                    <div className="text-center py-8 text-red-500">
                         <p>Failed to load balances</p>
-                        <p className="text-sm text-zinc-500 mt-2">{error.message}</p>
+                        <p className="text-sm text-slate mt-2">{error.message}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -89,16 +89,16 @@ export function PortfolioBalance() {
             <CardContent>
                 <div className="space-y-6">
                     {/* Total Portfolio Value */}
-                    <div className="text-center p-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-xl">
-                        <p className="text-sm text-cyan-400 mb-2">Total Portfolio Value</p>
-                        <p className="text-4xl font-bold text-white">{formatUSD(totalValue)}</p>
+                    <div className="text-center p-6 bg-cyber-yellow/10 border border-cyber-yellow/30 rounded-xl shadow-soft">
+                        <p className="text-sm text-slate mb-2">Total Portfolio Value</p>
+                        <p className="text-4xl font-bold text-charcoal">{formatUSD(totalValue)}</p>
                     </div>
 
                     {/* Chain Breakdown */}
                     {Object.keys(balancesByChain).length === 0 ? (
-                        <div className="text-center py-8 text-zinc-500">
+                        <div className="text-center py-8 text-slate">
                             <svg
-                                className="w-16 h-16 mx-auto mb-4 text-zinc-700"
+                                className="w-16 h-16 mx-auto mb-4 text-slate/50"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -110,7 +110,7 @@ export function PortfolioBalance() {
                                     d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                                 />
                             </svg>
-                            <p className="text-lg font-medium">No balances found</p>
+                            <p className="text-lg font-medium text-charcoal">No balances found</p>
                             <p className="text-sm mt-1">Add funds to your wallet to get started</p>
                         </div>
                     ) : (
@@ -122,25 +122,25 @@ export function PortfolioBalance() {
                                 return (
                                     <div
                                         key={chainId}
-                                        className="bg-zinc-800/50 border border-zinc-700 rounded-lg overflow-hidden"
+                                        className="bg-white border border-silver rounded-lg overflow-hidden hover:border-cyber-yellow hover:shadow-yellow-glow transition-all shadow-soft"
                                     >
                                         <button
                                             onClick={() =>
                                                 setExpandedChain(isExpanded ? null : Number(chainId))
                                             }
-                                            className="w-full p-4 text-left hover:bg-zinc-800 transition-colors"
+                                            className="w-full p-4 text-left hover:bg-light-grey transition-colors"
                                         >
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyber-yellow to-cyber-yellow-dark flex items-center justify-center text-charcoal text-sm font-bold shadow-soft">
                                                         {chainData.chainName.charAt(0)}
                                                     </div>
-                                                    <span className="font-medium text-white">
+                                                    <span className="font-medium text-charcoal">
                                                         {chainData.chainName}
                                                     </span>
                                                 </div>
                                                 <svg
-                                                    className={`w-5 h-5 text-zinc-400 transition-transform ${isExpanded ? 'rotate-180' : ''
+                                                    className={`w-5 h-5 text-slate transition-transform ${isExpanded ? 'rotate-180' : ''
                                                         }`}
                                                     fill="none"
                                                     viewBox="0 0 24 24"
@@ -155,7 +155,7 @@ export function PortfolioBalance() {
                                                 </svg>
                                             </div>
 
-                                            <p className="text-2xl font-bold text-white mb-2">
+                                            <p className="text-2xl font-bold text-charcoal mb-2">
                                                 {formatUSD(chainData.totalUSD)}
                                             </p>
 
@@ -167,10 +167,10 @@ export function PortfolioBalance() {
                                                             key={`${token.chainId}-${token.token.address}`}
                                                             className="flex items-center justify-between text-sm"
                                                         >
-                                                            <span className="text-zinc-400">
+                                                            <span className="text-slate">
                                                                 {token.token.symbol}
                                                             </span>
-                                                            <span className="text-zinc-300">
+                                                            <span className="text-charcoal font-medium">
                                                                 {formatTokenAmount(
                                                                     token.balance,
                                                                     token.token.decimals,
@@ -185,22 +185,22 @@ export function PortfolioBalance() {
 
                                         {/* Expanded Token List */}
                                         {isExpanded && (
-                                            <div className="border-t border-zinc-700 p-4 space-y-2">
+                                            <div className="border-t border-silver p-4 space-y-2 bg-light-grey/50">
                                                 {chainData.tokens.map((token) => (
                                                     <div
                                                         key={`${token.chainId}-${token.token.address}`}
-                                                        className="flex items-center justify-between p-2 bg-zinc-900/50 rounded"
+                                                        className="flex items-center justify-between p-2 bg-white rounded border border-silver"
                                                     >
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyber-yellow to-cyber-yellow-dark flex items-center justify-center text-charcoal text-xs font-bold">
                                                                 {token.token.symbol.charAt(0)}
                                                             </div>
-                                                            <span className="text-sm font-medium text-white">
+                                                            <span className="text-sm font-medium text-charcoal">
                                                                 {token.token.symbol}
                                                             </span>
                                                         </div>
                                                         <div className="text-right">
-                                                            <p className="text-sm font-medium text-white">
+                                                            <p className="text-sm font-medium text-charcoal">
                                                                 {formatTokenAmount(
                                                                     token.balance,
                                                                     token.token.decimals,
@@ -208,7 +208,7 @@ export function PortfolioBalance() {
                                                                 )}
                                                             </p>
                                                             {token.balanceUSD && (
-                                                                <p className="text-xs text-zinc-500">
+                                                                <p className="text-xs text-slate">
                                                                     {formatUSD(token.balanceUSD)}
                                                                 </p>
                                                             )}

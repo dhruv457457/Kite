@@ -71,7 +71,7 @@ export default function HistoryPage() {
                                         About Transaction History
                                     </p>
                                     <p className="text-sm text-blue-400/80">
-                                        Your transaction history is stored locally in your browser. It includes all successful and pending transactions initiated through Kite. You can click on any transaction to view full details including transaction hashes and block explorer links.
+                                        Your transaction history is fetched directly from the blockchain using Etherscan, Basescan, Arbiscan, and Polygonscan APIs. All transactions shown here are real on-chain transactions from Ethereum, Base, Arbitrum, and Polygon.
                                     </p>
                                 </div>
                             </div>

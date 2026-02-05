@@ -184,10 +184,10 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     Back
                 </Button>
                 <div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-2xl font-bold text-charcoal">
                         Send to {recipientProfile.name}
                     </h2>
-                    <p className="text-sm text-zinc-400">
+                    <p className="text-sm text-slate">
                         {shouldUseKiteSafe
                             ? `Depositing to ${recipientProfile.preferredToken} vault on ${recipientProfile.preferredChain}`
                             : `Sending ${recipientProfile.preferredToken} on ${recipientProfile.preferredChain}`
@@ -202,14 +202,14 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     <React.Fragment key={step}>
                         <div
                             className={`flex items-center gap-2 ${index <= ['select', 'route', 'confirm', 'receipt'].indexOf(currentStep)
-                                ? 'text-cyan-400'
-                                : 'text-zinc-600'
+                                ? 'text-cyber-yellow'
+                                : 'text-slate/50'
                                 }`}
                         >
                             <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${index <= ['select', 'route', 'confirm', 'receipt'].indexOf(currentStep)
-                                    ? 'border-cyan-400 bg-cyan-400/10'
-                                    : 'border-zinc-600'
+                                className={`w-8 h-8 rounded-full flex items-center justify-center border-2 font-semibold ${index <= ['select', 'route', 'confirm', 'receipt'].indexOf(currentStep)
+                                    ? 'border-cyber-yellow bg-cyber-yellow/10 text-cyber-yellow'
+                                    : 'border-silver text-slate'
                                     }`}
                             >
                                 {index + 1}
@@ -219,8 +219,8 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                         {index < 3 && (
                             <div
                                 className={`w-12 h-0.5 ${index < ['select', 'route', 'confirm', 'receipt'].indexOf(currentStep)
-                                    ? 'bg-cyan-400'
-                                    : 'bg-zinc-600'
+                                    ? 'bg-cyber-yellow'
+                                    : 'bg-silver'
                                     }`}
                             />
                         )}
@@ -237,27 +237,27 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     <CardContent className="space-y-6">
                         <button
                             onClick={() => setIsTokenSelectorOpen(true)}
-                            className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-cyan-500 transition-all"
+                            className="w-full p-4 bg-white border border-silver rounded-xl hover:border-cyber-yellow hover:shadow-yellow-glow transition-all shadow-soft"
                         >
                             {selectedToken ? (
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyber-yellow to-cyber-yellow-dark flex items-center justify-center text-charcoal font-bold shadow-soft">
                                             {selectedToken.symbol.charAt(0)}
                                         </div>
                                         <div className="text-left">
-                                            <div className="font-medium text-white">{selectedToken.symbol}</div>
-                                            <div className="text-sm text-zinc-500">{selectedToken.chainName}</div>
+                                            <div className="font-medium text-charcoal">{selectedToken.symbol}</div>
+                                            <div className="text-sm text-slate">{selectedToken.chainName}</div>
                                         </div>
                                     </div>
-                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-5 h-5 text-slate" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-between">
-                                    <span className="text-zinc-500">Select a token</span>
-                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <span className="text-slate">Select a token</span>
+                                    <svg className="w-5 h-5 text-slate" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
@@ -296,20 +296,20 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     {isLoadingRoute ? (
                         <Card>
                             <CardContent className="py-12 text-center">
-                                <div className="inline-block w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-                                <p className="mt-4 text-zinc-400">Finding best route...</p>
+                                <div className="inline-block w-12 h-12 border-4 border-cyber-yellow border-t-transparent rounded-full animate-spin"></div>
+                                <p className="mt-4 text-slate">Finding best route...</p>
                             </CardContent>
                         </Card>
                     ) : routeError ? (
                         <Card>
                             <CardContent className="py-12 text-center">
                                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-                                    <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </div>
-                                <p className="text-red-400 font-medium mb-2">Route Error</p>
-                                <p className="text-sm text-zinc-400">{routeError.message}</p>
+                                <p className="text-red-500 font-medium mb-2">Route Error</p>
+                                <p className="text-sm text-slate">{routeError.message}</p>
                                 <Button className="mt-4" onClick={() => setCurrentStep('select')}>
                                     Go Back
                                 </Button>
@@ -330,7 +330,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     ) : (
                         <Card>
                             <CardContent className="py-12 text-center">
-                                <p className="text-zinc-400">No route found. Try a different amount.</p>
+                                <p className="text-slate">No route found. Try a different amount.</p>
                                 <Button className="mt-4" onClick={() => setCurrentStep('select')}>
                                     Go Back
                                 </Button>

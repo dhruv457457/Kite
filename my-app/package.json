@@ -9,25 +9,27 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@lifi/sdk": "^3.8.2",
+    "@lifi/wallet-management": "^3.8.2",
+    "@rainbow-me/rainbowkit": "^2.2.1",
+    "@tanstack/react-query": "^5.62.11",
+    "alchemy-sdk": "^3.6.5",
+    "framer-motion": "^12.30.1",
     "next": "^15.1.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@rainbow-me/rainbowkit": "^2.2.1",
-    "wagmi": "^2.14.5",
     "viem": "^2.21.54",
-    "@tanstack/react-query": "^5.62.11",
-    "@lifi/sdk": "^3.8.2",
-    "@lifi/wallet-management": "^3.8.2"
+    "wagmi": "^2.14.5"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5",
-    "tailwindcss": "^3.4.17",
-    "postcss": "^8",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
-    "eslint-config-next": "^15.1.6"
+    "eslint-config-next": "^15.1.6",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5"
   }
 }
