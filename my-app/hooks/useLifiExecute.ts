@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { executeRoute as sdkExecuteRoute } from '@lifi/sdk';
+import { useAccount, useSwitchChain } from 'wagmi';
 import type { KiteRoute } from '@/lib/lifi/types';
 import {
     createInitialProgress,
@@ -22,6 +23,9 @@ interface UseLifiExecuteResult {
 }
 
 export default function useLifiExecute(): UseLifiExecuteResult {
+    const { address, chain } = useAccount(); // ✅ Get current chain
+    const { switchChainAsync } = useSwitchChain(); // ✅ Chain switching
+
     const [isExecuting, setIsExecuting] = useState(false);
     const [progress, setProgress] = useState<ExecutionProgress | null>(null);
     const [txHashes, setTxHashes] = useState<{
@@ -76,12 +80,18 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                 return;
             }
 
-            // ✅ CRITICAL: Log the route we're about to execute
+            if (!address) {
+                const error = new Error('Wallet not connected');
+                setError(error);
+                callbacks?.onError?.(error);
+                return;
+            }
+
             console.log('🚀 Executing route:', {
                 id: route.id,
                 fromAmount: (route as any).fromAmount,
+                fromChainId: route.fromChainId,
                 steps: route.steps.length,
-                firstStepAction: route.steps[0]?.action,
             });
 
             // Reset state
@@ -91,10 +101,51 @@ export default function useLifiExecute(): UseLifiExecuteResult {
             setProgress(createInitialProgress(route));
 
             try {
+                // ✅ CRITICAL: Check and switch chain if needed
+                const requiredChainId = route.fromChainId;
+                const currentChainId = chain?.id;
+
+                console.log('🔍 Chain Check:', {
+                    required: requiredChainId,
+                    current: currentChainId,
+                    needsSwitch: currentChainId !== requiredChainId,
+                });
+
+                if (currentChainId !== requiredChainId) {
+                    console.log(`🔄 Switching from chain ${currentChainId} to ${requiredChainId}...`);
+
+                    // ✅ Add a temporary "switching network" step to progress
+                    setProgress({
+                        status: 'executing',
+                        currentStep: 0,
+                        totalSteps: route.steps.length,
+                        steps: [{
+                            type: 'chain-switch',
+                            name: 'Switching Network',
+                            status: 'executing',
+                        }],
+                    });
+
+                    try {
+                        await switchChainAsync({ chainId: requiredChainId });
+                        console.log('✅ Chain switched successfully!');
+
+                        // Wait a bit for wallet to settle after chain switch
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+
+                        // Reset progress after successful chain switch
+                        setProgress(createInitialProgress(route));
+                    } catch (switchError) {
+                        console.error('❌ Chain switch failed:', switchError);
+                        throw new Error(
+                            `Please switch to the correct network in your wallet.\nRequired: Chain ID ${requiredChainId}\nCurrent: Chain ID ${currentChainId}`
+                        );
+                    }
+                }
+
                 console.log('🚀 Starting route execution with', route.steps.length, 'steps');
 
-                // ✅ CRITICAL: Pass the route object EXACTLY as received from getQuote/getRoutes
-                // DO NOT modify route.fromAmount or any step amounts
+                // ✅ Execute the route via LI.FI SDK
                 const result = await sdkExecuteRoute(route, {
                     updateRouteHook: (updatedRoute: any) => {
                         try {
@@ -219,7 +270,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                 setIsExecuting(false);
             }
         },
-        [progress, updateStepProgress, collectTxHash]
+        [address, chain, switchChainAsync, progress, updateStepProgress, collectTxHash]
     );
 
     const reset = useCallback(() => {

@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { RouteDisplay } from './RouteDisplay';
 import type { KiteRoute, ExecutionProgress } from '@/lib/lifi/types';
 import type { ENSProfile } from '@/types/ens';
 import { formatUSD } from '@/lib/utils/formatters';
+import { useAccount } from 'wagmi';
 
 interface StepStatus {
     step: string;
@@ -45,10 +46,34 @@ export function ConfirmTransaction({
     const hasStarted = executionSteps.length > 0;
     const hasFailed = executionSteps.some((s) => s.status === 'failed');
 
+    // Check if chain switch is needed
+    const { chain } = useAccount();
+    const needsChainSwitch = useMemo(() => {
+        const currentChainId = chain?.id;
+        return currentChainId !== route.fromChainId;
+    }, [chain?.id, route.fromChainId]);
+
     return (
         <div className="space-y-6">
             {/* Route Summary */}
             <RouteDisplay route={route} isLoading={false} />
+
+            {/* Chain Switch Notice */}
+            {needsChainSwitch && !hasStarted && (
+                <div className="bg-cyber-yellow/10 border border-cyber-yellow rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                        <svg className="w-5 h-5 text-cyber-yellow flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        <div>
+                            <p className="text-sm font-medium text-charcoal">Chain Switch Required</p>
+                            <p className="text-sm text-slate mt-1">
+                                You'll be prompted to switch to the correct network before execution.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Warning Box */}
             {!hasStarted && (

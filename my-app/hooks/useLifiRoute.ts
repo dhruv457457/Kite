@@ -6,6 +6,8 @@ import {
     formatRouteForDisplay,
     sortRoutesByBest,
 } from '@/lib/lifi/types';
+import { isValidVault } from '@/lib/vaults/isValidVault';
+import type { Address } from 'viem';
 
 interface UseLifiRouteOptions extends KiteRouteRequest {
     enabled?: boolean;
@@ -20,10 +22,7 @@ interface UseLifiRouteResult {
     selectRoute: (routeId: string) => void;
 }
 
-// ✅ Working vault addresses
-const VAULT_ADDRESSES: Record<number, `0x${string}`> = {
-    8453: '0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A', // Spark USDC Vault on Base
-};
+
 
 export default function useLifiRoute(
     options: UseLifiRouteOptions
@@ -105,12 +104,10 @@ export default function useLifiRoute(
 
             let fetchedRoutes: Route[] = [];
 
-            // ✅ Check if vault deposit is requested
+            // ✅ SIMPLIFIED: Just check if address looks like a vault
             const shouldUseVaultDeposit = Boolean(
                 vaultAddress &&
-                vaultAddress !== '0x0000000000000000000000000000000000000000' &&
-                VAULT_ADDRESSES[toToken.chainId] &&
-                vaultAddress.toLowerCase() === VAULT_ADDRESSES[toToken.chainId].toLowerCase()
+                vaultAddress !== '0x0000000000000000000000000000000000000000'
             );
 
             console.log('🔍 Route Configuration:', {
@@ -124,59 +121,68 @@ export default function useLifiRoute(
             });
 
             // ✅ VAULT DEPOSIT - Use getQuote() with vault as toToken
-          // ✅ VAULT DEPOSIT - Use getQuote() with vault as toToken
-if (shouldUseVaultDeposit) {
-    console.log('🎯 Using LI.FI Composer: vault address as destination');
+            if (shouldUseVaultDeposit) {
+                console.log('🎯 Using vault deposit:', vaultAddress);
 
-    try {
-        // ✅ NO explicit typing - let TypeScript infer
-        const step = await getQuote({
-            fromChain: fromToken.chainId,
-            fromToken: fromToken.address,
-            toChain: toToken.chainId,
-            toToken: vaultAddress as string, // ✅ Vault address!
-            fromAmount: normalizedFromAmount,
-            fromAddress: fromAddress,
-            toAddress: toAddress,
-            slippage: slippage || DEFAULT_ROUTE_OPTIONS.slippage,
-            integrator: 'kite-finance',
-        });
+                // ✅ Optional: Validate it's a real vault (not required, but safer)
+                const isVault = await isValidVault(
+                    vaultAddress as Address,
+                    toToken.chainId
+                );
 
-        console.log('✅ Vault deposit quote received:', {
-            id: step.id,
-            type: step.type,
-            tool: step.tool,
-        });
+                if (!isVault) {
+                    console.warn('⚠️ Address does not appear to be a vault, trying anyway...');
+                }
 
-        // ✅ Convert Step to Route format
-        const route: Route = {
-            id: step.id,
-            fromChainId: step.action.fromChainId,
-            fromAmountUSD: step.estimate?.fromAmountUSD || '0',
-            fromAmount: step.action.fromAmount,
-            fromToken: step.action.fromToken,
-            fromAddress: step.action.fromAddress,
-            toChainId: step.action.toChainId,
-            toAmountUSD: step.estimate?.toAmountUSD || '0',
-            toAmount: step.estimate?.toAmount || '0',
-            toAmountMin: step.estimate?.toAmountMin || '0',
-            toToken: step.action.toToken,
-            toAddress: step.action.toAddress,
-            gasCostUSD: step.estimate?.gasCosts?.reduce((sum: number, cost) => {
-                return sum + parseFloat(cost.amountUSD || '0');
-            }, 0).toString() || '0',
-            steps: [step] as any, // ✅ Type assertion here instead
-            insurance: (step as any).insurance,
-            tags: (step as any).tags || [],
-        };
+                try {
+                    // ✅ Use getQuote with ANY vault address
+                    const step = await getQuote({
+                        fromChain: fromToken.chainId,
+                        fromToken: fromToken.address,
+                        toChain: toToken.chainId,
+                        toToken: vaultAddress as string, // ✅ Any address!
+                        fromAmount: normalizedFromAmount,
+                        fromAddress: fromAddress,
+                        toAddress: toAddress,
+                        slippage: slippage || DEFAULT_ROUTE_OPTIONS.slippage,
+                        integrator: 'kite-finance',
+                    });
 
-        fetchedRoutes = [route];
-        console.log('✅ Vault deposit route created with LI.FI Composer');
-    } catch (vaultError) {
-        console.error('❌ Vault deposit failed:', vaultError);
-        console.log('🔄 Falling back to regular transfer');
-    }
-}
+                    console.log('✅ Vault deposit quote received:', {
+                        id: step.id,
+                        type: step.type,
+                        tool: step.tool,
+                    });
+
+                    // ✅ Convert Step to Route format
+                    const route: Route = {
+                        id: step.id,
+                        fromChainId: step.action.fromChainId,
+                        fromAmountUSD: step.estimate?.fromAmountUSD || '0',
+                        fromAmount: step.action.fromAmount,
+                        fromToken: step.action.fromToken,
+                        fromAddress: step.action.fromAddress,
+                        toChainId: step.action.toChainId,
+                        toAmountUSD: step.estimate?.toAmountUSD || '0',
+                        toAmount: step.estimate?.toAmount || '0',
+                        toAmountMin: step.estimate?.toAmountMin || '0',
+                        toToken: step.action.toToken,
+                        toAddress: step.action.toAddress,
+                        gasCostUSD: step.estimate?.gasCosts?.reduce((sum: number, cost) => {
+                            return sum + parseFloat(cost.amountUSD || '0');
+                        }, 0).toString() || '0',
+                        steps: [step] as any,
+                        insurance: (step as any).insurance,
+                        tags: (step as any).tags || [],
+                    };
+
+                    fetchedRoutes = [route];
+                    console.log('✅ Vault deposit route created with LI.FI Composer');
+                } catch (vaultError) {
+                    console.error('❌ Vault deposit failed:', vaultError);
+                    console.log('🔄 Falling back to regular transfer');
+                }
+            }
 
             // ✅ REGULAR ROUTE (no vault OR vault failed)
             if (fetchedRoutes.length === 0) {

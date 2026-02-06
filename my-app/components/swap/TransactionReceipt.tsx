@@ -75,8 +75,7 @@ export function TransactionReceipt({
                             <div>
                                 <p className="text-sm text-slate mb-1">You sent</p>
                                 <p className="text-lg font-semibold text-charcoal">
-                                    {route.fromAmount} {route.fromToken.symbol}
-                                </p>
+                                    {formatTokenAmount(route.fromAmount, route.fromToken.decimals)} {route.fromToken.symbol}                                </p>
                                 <p className="text-sm text-slate">
                                     {formatUSD(route.fromToken.priceUSD || '0')}
                                 </p>
@@ -91,8 +90,7 @@ export function TransactionReceipt({
                             <div>
                                 <p className="text-sm text-slate mb-1">{recipientProfile.name} received</p>
                                 <p className="text-lg font-semibold text-charcoal">
-                                    {route.toAmount} {route.toToken.symbol}
-                                </p>
+                                    {formatTokenAmount(route.fromAmount, route.fromToken.decimals)} {route.fromToken.symbol}                                </p>
                                 <p className="text-sm text-slate">
                                     {formatUSD(route.toToken.priceUSD || '0')}
                                 </p>

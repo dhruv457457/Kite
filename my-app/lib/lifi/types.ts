@@ -40,17 +40,19 @@ export interface KiteRoute extends Route {
 
 /**
  * Execution progress tracking
+ * ✅ UPDATED: Added 'chain-switch' step type
  */
 export interface ExecutionProgress {
     currentStep: number;
     totalSteps: number;
     steps: Array<{
-        type: 'swap' | 'bridge' | 'deposit';
+        type: 'swap' | 'bridge' | 'deposit' | 'chain-switch'; // ✅ Added chain-switch
         status: 'pending' | 'executing' | 'completed' | 'failed';
         txHash?: string;
         error?: string;
         name?: string; // Step name for display
     }>;
+    status?: 'pending' | 'executing' | 'completed' | 'failed'; // ✅ Added for overall status
 }
 
 /**
@@ -215,13 +217,15 @@ export function createInitialProgress(route: Route): ExecutionProgress {
         return {
             currentStep: 0,
             totalSteps: 0,
-            steps: []
+            steps: [],
+            status: 'pending', // ✅ Added
         };
     }
 
     return {
         currentStep: 0,
         totalSteps: route.steps.length,
+        status: 'pending', // ✅ Added
         steps: route.steps.map((step) => ({
             type: getStepType(step),
             status: 'pending',

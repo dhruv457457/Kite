@@ -23,11 +23,6 @@ interface SwapFlowProps {
 
 type FlowStep = 'select' | 'route' | 'confirm' | 'receipt';
 
-// ✅ Vault addresses
-const VAULT_ADDRESSES: Record<number, `0x${string}`> = {
-    8453: '0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A', // Spark USDC Vault on Base
-};
-
 
 
 export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
@@ -88,20 +83,13 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         }
     }, [amount, selectedToken]);
 
-    // Check if deposit target is a supported vault
+    // ✅ SIMPLIFIED: Just check if depositTarget exists
     const isVaultDeposit = useMemo(() => {
-        if (!recipientProfile.depositTarget ||
-            recipientProfile.depositTarget === '0x0000000000000000000000000000000000000000') {
-            return false;
-        }
-
-        const supportedVaultAddress = VAULT_ADDRESSES[recipientChainId];
-
         return Boolean(
-            supportedVaultAddress &&
-            recipientProfile.depositTarget.toLowerCase() === supportedVaultAddress.toLowerCase()
+            recipientProfile.depositTarget &&
+            recipientProfile.depositTarget !== '0x0000000000000000000000000000000000000000'
         );
-    }, [recipientProfile.depositTarget, recipientChainId]);
+    }, [recipientProfile.depositTarget]);
 
 
 
@@ -205,6 +193,12 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                 },
                 onError: (error) => {
                     console.error('❌ Execution failed:', error);
+
+                    // ✅ Show specific error for chain switching
+                    if (error.message.includes('switch to the correct network')) {
+                        // User will see the MetaMask popup to switch chains
+                        console.log('⚠️ Waiting for user to switch chains...');
+                    }
                 },
             });
         } catch (error) {
