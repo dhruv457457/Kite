@@ -7,7 +7,6 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ProfileSetup } from '@/components/profile/ProfileSetup';
-import { PortfolioBalance } from '@/components/home/PortfolioBalance';
 import { RecentActivity } from '@/components/home/RecentActivity';
 import useENSProfile from '@/hooks/useENSProfile';
 
@@ -123,26 +122,7 @@ export default function ProfilePage() {
     return (
         <div className="container mx-auto px-4 py-6">
             <div className="max-w-7xl mx-auto">
-                {/* Page Header */}
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-charcoal mb-2">My Profile</h1>
-                    <p className="text-slate">
-                        View your portfolio, activity, and configure your Kite preferences
-                    </p>
-                </div>
 
-                {/* Portfolio Balance and Recent Activity - Side by Side */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* Portfolio Balance */}
-                    <div>
-                        <PortfolioBalance />
-                    </div>
-
-                    {/* Recent Activity */}
-                    <div>
-                        <RecentActivity address={address!} limit={5} />
-                    </div>
-                </div>
 
                 {/* Profile Setup Section */}
                 <div className="mb-4">
@@ -164,6 +144,11 @@ export default function ProfilePage() {
                         existingProfile={profile}
                     />
                 )}
+
+                {/* Recent Activity - Full Width */}
+                <div className="mt-8">
+                    <RecentActivity address={address!} limit={5} />
+                </div>
             </div>
         </div>
     );

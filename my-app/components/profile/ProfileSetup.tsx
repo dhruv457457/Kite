@@ -138,7 +138,7 @@ export function ProfileSetup({ ensName, address, existingProfile }: ProfileSetup
     // Handle error
     useEffect(() => {
         if (error) {
-            showToast(error.message, 'error');
+            showToast('error', error.message);
         }
     }, [error, showToast]);
 
@@ -220,75 +220,64 @@ export function ProfileSetup({ ensName, address, existingProfile }: ProfileSetup
                                 </button>
                             </div>
 
-                            {/* Advanced Section - Vault Deposit */}
-                  {/* Advanced Section - Vault Deposit */}
-{advancedMode && (
-    <div className="bg-light-grey border border-silver rounded-lg p-4 space-y-4">
-        <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-cyber-yellow flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="text-sm text-slate">
-                <p className="font-medium text-charcoal mb-1">Optional: Vault Auto-Deposit</p>
-                <p>If you have a DeFi vault, you can have incoming funds automatically deposited. Otherwise, leave blank to receive tokens directly in your wallet.</p>
-            </div>
-        </div>
+                            {/* Advanced Section - Vault Deposit - MINIMIZED */}
+                            {advancedMode && (
+                                <div className="bg-light-grey border border-silver rounded-lg p-4 space-y-3">
+                                    <Input
+                                        label="Vault Contract Address (Optional)"
+                                        placeholder="Leave blank to receive in wallet"
+                                        value={depositTarget}
+                                        onChange={(e) => setDepositTarget(e.target.value)}
+                                        error={addressError}
+                                        helperText="Auto-deposit incoming funds to a DeFi vault"
+                                    />
 
-        <Input
-            label="Vault Contract Address (Optional)"
-            placeholder="0x... or leave blank"
-            value={depositTarget}
-            onChange={(e) => setDepositTarget(e.target.value)}
-            error={addressError}
-            helperText="Leave blank to receive tokens in your wallet"
-        />
+                                    {/* Compact recommendation - only shows when empty */}
+                                    {!depositTarget && (
+                                        <div className="flex items-center gap-2 text-xs flex-wrap">
+                                            <span className="text-slate">💡 Recommended:</span>
+                                            <a
+                                                href="https://app.spark.fi/"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 underline"
+                                            >
+                                                Spark USDC Vault
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => setDepositTarget('0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A')}
+                                                className="px-2 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 font-medium"
+                                            >
+                                                Use This
+                                            </button>
+                                        </div>
+                                    )}
 
-        {/* ✅ Add helpful recommendation */}
-        <div className="bg-blue-50 border border-blue-300 rounded p-3 text-xs">
-            <p className="font-medium text-blue-900 mb-1">💡 Recommended Vault (Base):</p>
-            <p className="text-blue-700 mb-2">Spark USDC Vault - Earn yield automatically</p>
-            <div className="flex items-center gap-2">
-                <code className="flex-1 bg-white px-2 py-1 rounded font-mono text-xs text-charcoal break-all">
-                    0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A
-                </code>
-                <button
-                    type="button"
-                    onClick={() => setDepositTarget('0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A')}
-                    className="text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
-                >
-                    Use This
-                </button>
-            </div>
-            <p className="text-blue-600 text-xs mt-2">
-                <a href="https://app.spark.fi/" target="_blank" rel="noopener noreferrer" className="underline">
-                    Learn more about Spark →
-                </a>
-            </p>
-        </div>
-
-        {depositTarget && !addressError && depositTarget !== address && (
-            <div className="bg-cyber-yellow/10 border border-cyber-yellow/30 rounded p-2 text-xs text-charcoal">
-                ✓ Vault configured - incoming funds will be auto-deposited
-            </div>
-        )}
-    </div>
-)}
-
-                            {/* Info Box */}
-                            <div className="bg-cyber-yellow/10 border border-cyber-yellow/30 rounded-lg p-4 shadow-soft">
-                                <div className="flex items-start gap-3">
-                                    <svg className="w-5 h-5 text-cyber-yellow flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <div className="flex-1">
-                                        <p className="text-sm text-charcoal font-medium mb-1">
-                                            About ENS Text Records
-                                        </p>
-                                        <p className="text-sm text-slate">
-                                            Your preferences are saved to your ENS name as public text records. Anyone can read them, but only you can update them.
-                                        </p>
-                                    </div>
+                                    {/* Success message - only shows when vault is set */}
+                                    {depositTarget && !addressError && depositTarget !== address && (
+                                        <div className="flex items-center gap-2 text-xs text-green-600">
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Vault configured - incoming funds will auto-deposit
+                                        </div>
+                                    )}
                                 </div>
+                            )}
+
+                            {/* Minimized ENS Info - One line instead of big box */}
+                            <div className="text-xs text-slate">
+                                Saved to{' '}
+                                <a
+                                    href={`https://app.ens.domains/${ensName}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline"
+                                >
+                                    ENS text records
+                                </a>
+                                {' '}(public, but only you can update)
                             </div>
 
                             {/* Save Button */}
