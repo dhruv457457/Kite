@@ -11,10 +11,9 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import useLifiRoute from '@/hooks/useLifiRoute';
 import useLifiExecute from '@/hooks/useLifiExecute';
-import useKiteSafe from '@/hooks/useKiteSafe';
 import useTokenBalance from '@/hooks/useTokenBalance';
 import { useAccount } from 'wagmi';
-import { parseUnits } from 'viem';
+import { parseUnits, encodeFunctionData } from 'viem';
 import type { SelectedToken } from './TokenSelector';
 
 interface SwapFlowProps {
@@ -23,6 +22,13 @@ interface SwapFlowProps {
 }
 
 type FlowStep = 'select' | 'route' | 'confirm' | 'receipt';
+
+// ✅ Vault addresses
+const VAULT_ADDRESSES: Record<number, `0x${string}`> = {
+    8453: '0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A', // Spark USDC Vault on Base
+};
+
+
 
 export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
     const { address } = useAccount();
@@ -34,7 +40,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
     // Fetch user's token balances
     const { balances, isLoading: isLoadingBalances } = useTokenBalance({ address });
 
-    // ✅ Memoize recipient chain ID
+    // Memoize recipient chain ID
     const recipientChainId = useMemo(() => {
         if (!recipientProfile.preferredChain) return 0;
 
@@ -48,7 +54,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         return chainMap[recipientProfile.preferredChain.toLowerCase()] || 0;
     }, [recipientProfile.preferredChain]);
 
-    // ✅ Memoize destination token address
+    // Memoize destination token address
     const destinationTokenAddress = useMemo(() => {
         const tokenAddresses: Record<number, Record<string, `0x${string}`>> = {
             8453: {
@@ -72,7 +78,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         return tokenAddresses[recipientChainId]?.[preferredToken] || '0x0000000000000000000000000000000000000000' as `0x${string}`;
     }, [recipientChainId, recipientProfile.preferredToken]);
 
-    // ✅ Memoize parsed amount
+    // Memoize parsed amount
     const parsedAmount = useMemo(() => {
         if (!amount || !selectedToken) return BigInt(0);
         try {
@@ -82,57 +88,91 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         }
     }, [amount, selectedToken]);
 
-    // ✅ Generate KiteSafe calldata with memoized params
-    const { depositCallData, contractAddress } = useKiteSafe({
-        chainId: recipientChainId,
-        token: destinationTokenAddress,
-        vault: recipientProfile.depositTarget || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
-        recipient: recipientProfile.address,
-        amount: parsedAmount,
-    });
+    // Check if deposit target is a supported vault
+    const isVaultDeposit = useMemo(() => {
+        if (!recipientProfile.depositTarget ||
+            recipientProfile.depositTarget === '0x0000000000000000000000000000000000000000') {
+            return false;
+        }
 
-    // ✅ Memoize shouldUseKiteSafe check
-    const shouldUseKiteSafe = useMemo(() => {
+        const supportedVaultAddress = VAULT_ADDRESSES[recipientChainId];
+
         return Boolean(
-            recipientProfile.depositTarget &&
-            recipientProfile.depositTarget !== '0x0000000000000000000000000000000000000000' &&
-            contractAddress &&
-            contractAddress !== '0x0000000000000000000000000000000000000000' &&
-            depositCallData &&
-            depositCallData !== '0x'
+            supportedVaultAddress &&
+            recipientProfile.depositTarget.toLowerCase() === supportedVaultAddress.toLowerCase()
         );
-    }, [recipientProfile.depositTarget, contractAddress, depositCallData]);
+    }, [recipientProfile.depositTarget, recipientChainId]);
 
-    // ✅ Memoize route request params
-    const routeParams = useMemo(() => ({
-        fromToken: selectedToken || {
-            address: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-            chainId: 1,
-            symbol: 'ETH',
-            decimals: 18,
-        },
-        toToken: {
-            address: destinationTokenAddress,
-            chainId: recipientChainId,
-            symbol: recipientProfile.preferredToken || 'ETH',
-            decimals: 18,
-        },
-        fromAmount: parsedAmount.toString(),
-        fromAddress: address || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
-        toAddress: recipientProfile.address,
-        vaultAddress: shouldUseKiteSafe && contractAddress ? contractAddress : undefined,
-        depositCallData: shouldUseKiteSafe && depositCallData && depositCallData !== '0x' ? depositCallData : undefined,
-        enabled: currentStep === 'route' && !!amount && !!selectedToken && parsedAmount > BigInt(0),
-    }), [selectedToken, destinationTokenAddress, recipientChainId, recipientProfile, parsedAmount, address, shouldUseKiteSafe, contractAddress, depositCallData, currentStep, amount]);
 
-    // ✅ Fetch route from LI.FI with memoized params
+
+    // Memoize route request params
+    const routeParams = useMemo(() => {
+        const params = {
+            fromToken: selectedToken || {
+                address: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+                chainId: 1,
+                symbol: 'ETH',
+                decimals: 18,
+            },
+            toToken: {
+                address: destinationTokenAddress,
+                chainId: recipientChainId,
+                symbol: recipientProfile.preferredToken || 'ETH',
+                decimals: 18,
+            },
+            fromAmount: parsedAmount.toString(),
+            fromAddress: address || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+            toAddress: recipientProfile.address,
+            vaultAddress: isVaultDeposit ? recipientProfile.depositTarget : undefined, // ✅ Just pass vault address
+            enabled: currentStep === 'route' && !!amount && !!selectedToken && parsedAmount > BigInt(0),
+        };
+
+        if (params.enabled) {
+            console.log('📊 Route Request Params:', {
+                fromChain: params.fromToken.chainId,
+                toChain: params.toToken.chainId,
+                fromToken: params.fromToken.symbol,
+                toToken: params.toToken.symbol,
+                amount: params.fromAmount,
+                hasVault: !!params.vaultAddress,
+                vaultAddress: params.vaultAddress,
+                willDepositToVault: isVaultDeposit,
+            });
+        }
+
+        return params;
+    }, [
+        selectedToken,
+        destinationTokenAddress,
+        recipientChainId,
+        recipientProfile,
+        parsedAmount,
+        address,
+        isVaultDeposit,
+        currentStep,
+        amount
+    ]);
+
+    // Fetch route from LI.FI
     const { selectedRoute, isLoading: isLoadingRoute, error: routeError } = useLifiRoute(routeParams);
+
+    // Log when route is fetched
+    useMemo(() => {
+        if (selectedRoute) {
+            console.log('✅ Route received:', {
+                id: selectedRoute.id,
+                steps: selectedRoute.steps?.length || 0,
+                willDepositToVault: isVaultDeposit,
+            });
+        }
+    }, [selectedRoute, isVaultDeposit]);
 
     // Execute route
     const { executeRoute, progress, isExecuting, txHashes, error: executeError } = useLifiExecute();
 
-    // ✅ Memoized handlers
+    // Handlers
     const handleTokenSelect = useCallback((token: SelectedToken) => {
+        console.log('🪙 Token selected:', token.symbol, 'on', token.chainName);
         setSelectedToken(token);
     }, []);
 
@@ -142,32 +182,38 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
 
     const handleGetRoute = useCallback(() => {
         if (selectedToken && amount && parseFloat(amount) > 0) {
+            console.log('🔄 Getting route for', amount, selectedToken.symbol);
             setCurrentStep('route');
         }
     }, [selectedToken, amount]);
 
     const handleConfirm = useCallback(() => {
+        console.log('✔️ Confirming transaction');
         setCurrentStep('confirm');
     }, []);
 
     const handleExecute = useCallback(async () => {
         if (!selectedRoute) return;
 
+        console.log('🚀 Executing route:', selectedRoute.id);
+
         try {
             await executeRoute(selectedRoute, {
                 onSuccess: () => {
+                    console.log('✅ Execution successful!');
                     setCurrentStep('receipt');
                 },
                 onError: (error) => {
-                    console.error('Execution failed:', error);
+                    console.error('❌ Execution failed:', error);
                 },
             });
         } catch (error) {
-            console.error('Failed to execute route:', error);
+            console.error('❌ Failed to execute route:', error);
         }
     }, [selectedRoute, executeRoute]);
 
     const handleStartOver = useCallback(() => {
+        console.log('🔄 Starting over');
         setCurrentStep('select');
         setSelectedToken(null);
         setAmount('');
@@ -188,13 +234,28 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                         Send to {recipientProfile.name}
                     </h2>
                     <p className="text-sm text-slate">
-                        {shouldUseKiteSafe
-                            ? `Depositing to ${recipientProfile.preferredToken} vault on ${recipientProfile.preferredChain}`
+                        {isVaultDeposit
+                            ? `✅ Will deposit to Spark ${recipientProfile.preferredToken} vault on ${recipientProfile.preferredChain}`
                             : `Sending ${recipientProfile.preferredToken} on ${recipientProfile.preferredChain}`
                         }
                     </p>
                 </div>
             </div>
+
+            {/* Vault Deposit Active Banner */}
+            {isVaultDeposit && (
+                <Card className="bg-green-50 border-green-300">
+                    <CardContent className="py-3">
+                        <div className="flex items-center gap-2 text-green-800 text-sm">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium">Vault Deposit Active:</span>
+                            <span className="text-xs">Swap → Bridge → Vault Deposit in one transaction</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Progress Steps */}
             <div className="flex items-center justify-center gap-2">
@@ -318,6 +379,29 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     ) : selectedRoute ? (
                         <>
                             <RouteDisplay route={selectedRoute} isLoading={false} />
+
+                            {/* Vault deposit info if active */}
+                            {isVaultDeposit && (
+                                <Card className="bg-blue-50 border-blue-300">
+                                    <CardContent className="py-4">
+                                        <div className="space-y-2">
+                                            <div className="flex items-start gap-2">
+                                                <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-blue-900">🎯 Vault Deposit Workflow</p>
+                                                    <p className="text-xs text-blue-700 mt-1">
+                                                        This transaction will: swap your tokens → bridge to {recipientProfile.preferredChain} → deposit into Spark vault.
+                                                        Recipient receives vault shares (interest-bearing) in one transaction!
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             <div className="flex gap-4">
                                 <Button variant="secondary" onClick={() => setCurrentStep('select')}>
                                     Change Amount

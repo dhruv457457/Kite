@@ -12,7 +12,12 @@ interface ENSProfileCardProps {
 }
 
 export function ENSProfileCard({ profile, onSend }: ENSProfileCardProps) {
-    const hasPreferences = profile.preferredChain && profile.preferredToken && profile.depositTarget;
+    // ✅ Check if vault is actually configured (not just the user's wallet address)
+    const hasVault = profile.depositTarget &&
+        profile.depositTarget !== '0x0000000000000000000000000000000000000000' &&
+        profile.depositTarget.toLowerCase() !== profile.address.toLowerCase();
+
+    const hasPreferences = profile.preferredChain && profile.preferredToken;
 
     return (
         <Card className="max-w-2xl mx-auto">
@@ -36,7 +41,7 @@ export function ENSProfileCard({ profile, onSend }: ENSProfileCardProps) {
                 {hasPreferences ? (
                     <>
                         <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Preferred Chain */}
                                 <div className="bg-light-grey rounded-lg p-4 border border-silver">
                                     <div className="flex items-center gap-2 mb-2">
@@ -60,27 +65,56 @@ export function ENSProfileCard({ profile, onSend }: ENSProfileCardProps) {
                                     </div>
                                     <p className="text-charcoal font-medium">{profile.preferredToken || 'Not set'}</p>
                                 </div>
+                            </div>
 
-                                {/* Deposit Target */}
+                            {/* Vault Status */}
+                            {hasVault ? (
                                 <div className="bg-light-grey rounded-lg p-4 border border-silver">
                                     <div className="flex items-center gap-2 mb-2">
                                         <svg className="w-4 h-4 text-cyber-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                         </svg>
-                                        <span className="text-xs text-slate uppercase">Deposit Target</span>
+                                        <span className="text-xs text-slate uppercase">Auto-Deposit Vault</span>
                                     </div>
                                     <p className="text-charcoal font-medium text-sm">
-                                        {profile.depositTarget ? formatAddress(profile.depositTarget) : 'Not set'}
+                                        {formatAddress(profile.depositTarget!)}
+                                    </p>
+                                    <p className="text-xs text-slate mt-1">
+                                        Funds will be automatically deposited
                                     </p>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                        <span className="text-xs text-blue-600 uppercase font-medium">Direct Wallet Transfer</span>
+                                    </div>
+                                    <p className="text-sm text-blue-700">
+                                        Funds will be sent directly to {profile.name}'s wallet
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Info box */}
                             <div className="bg-cyber-yellow/10 border border-cyber-yellow/30 rounded-lg p-4 shadow-soft">
                                 <p className="text-sm text-charcoal">
-                                    <strong>{profile.name}</strong> has configured their Kite profile to receive deposits on{' '}
-                                    <strong>{profile.preferredChain ? formatChainName(profile.preferredChain) : 'N/A'}</strong> in{' '}
-                                    <strong>{profile.preferredToken || 'N/A'}</strong>.
+                                    {hasVault ? (
+                                        <>
+                                            <strong>{profile.name}</strong> will receive{' '}
+                                            <strong>{profile.preferredToken || 'N/A'}</strong> on{' '}
+                                            <strong>{profile.preferredChain ? formatChainName(profile.preferredChain) : 'N/A'}</strong>
+                                            {', '}automatically deposited into their vault.
+                                        </>
+                                    ) : (
+                                        <>
+                                            <strong>{profile.name}</strong> will receive{' '}
+                                            <strong>{profile.preferredToken || 'N/A'}</strong> on{' '}
+                                            <strong>{profile.preferredChain ? formatChainName(profile.preferredChain) : 'N/A'}</strong>
+                                            {' '}directly in their wallet.
+                                        </>
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -107,7 +141,7 @@ export function ENSProfileCard({ profile, onSend }: ENSProfileCardProps) {
                             {profile.name} hasn&apos;t set up their Kite profile yet.
                         </p>
                         <p className="text-sm text-slate mt-2">
-                            They need to configure their preferred chain, token, and deposit target.
+                            They need to configure their preferred chain and token.
                         </p>
                     </div>
                 )}

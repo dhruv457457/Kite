@@ -127,11 +127,11 @@ export default function useKiteSafe({
                 abi: KITE_SAFE_ABI,
                 functionName: 'safeDepositFor',
                 args: [
-                    token,           // Token being deposited
-                    vault,           // Vault contract
-                    recipient,       // Who gets the vault shares
-                    amount,          // Amount to deposit
-                    vaultDepositData // Calldata for vault.deposit()
+                    token,
+                    vault,
+                    recipient,  // User receives vault shares directly
+                    amount,
+                    '0x' as `0x${string}`  // Let KiteSafe handle the vault deposit internally
                 ],
             });
 
