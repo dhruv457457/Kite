@@ -7,6 +7,7 @@ import { getChainNameFromId } from '@/lib/ens/textRecords';
 interface UseTokenBalanceOptions {
     address?: Address;
     chainIds?: number[];
+    enabled?: boolean; // ✅ NEW: Allow disabling
 }
 
 interface UseTokenBalanceResult {
@@ -15,16 +16,10 @@ interface UseTokenBalanceResult {
     error: Error | null;
 }
 
-// Helper function to check if value is defined
 function isDefined<T>(value: T | null | undefined): value is T {
     return value !== null && value !== undefined;
 }
 
-/**
- * Hook to fetch token balances across multiple chains
- * @param options - Configuration options
- * @returns Token balances, loading state, and error
- */
 export default function useTokenBalance(
     options: UseTokenBalanceOptions = {}
 ): UseTokenBalanceResult {
@@ -32,44 +27,45 @@ export default function useTokenBalance(
 
     const targetAddress = options.address || connectedAddress;
     const chainIds = options.chainIds || [1, 8453, 42161, 137];
+    const enabled = options.enabled !== false; // ✅ Default to true
 
     const [balances, setBalances] = useState<UserBalance[]>([]);
-    const [isLoading, setIsLoading] = useState(true); // Start as true
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
-    // Fetch native token balances
+    // ✅ Only fetch native balances if enabled
     const ethereumBalance = useBalance({
         address: targetAddress,
         chainId: 1,
-        query: { enabled: !!targetAddress && chainIds.includes(1) },
+        query: { enabled: enabled && !!targetAddress && chainIds.includes(1) },
     });
 
     const baseBalance = useBalance({
         address: targetAddress,
         chainId: 8453,
-        query: { enabled: !!targetAddress && chainIds.includes(8453) },
+        query: { enabled: enabled && !!targetAddress && chainIds.includes(8453) },
     });
 
     const arbitrumBalance = useBalance({
         address: targetAddress,
         chainId: 42161,
-        query: { enabled: !!targetAddress && chainIds.includes(42161) },
+        query: { enabled: enabled && !!targetAddress && chainIds.includes(42161) },
     });
 
     const polygonBalance = useBalance({
         address: targetAddress,
         chainId: 137,
-        query: { enabled: !!targetAddress && chainIds.includes(137) },
+        query: { enabled: enabled && !!targetAddress && chainIds.includes(137) },
     });
 
     useEffect(() => {
-        console.log('🔄 useTokenBalance: Effect triggered', {
-            targetAddress,
-            hasEthBalance: !!ethereumBalance.data,
-            hasBaseBalance: !!baseBalance.data,
-            hasArbBalance: !!arbitrumBalance.data,
-            hasPolyBalance: !!polygonBalance.data,
-        });
+        // ✅ Skip if disabled
+        if (!enabled) {
+            console.log('⏸️ useTokenBalance: Disabled');
+            setBalances([]);
+            setIsLoading(false);
+            return;
+        }
 
         if (!targetAddress) {
             console.log('⚠️ useTokenBalance: No target address');
@@ -88,7 +84,6 @@ export default function useTokenBalance(
 
                 // Add native token balances
                 if (chainIds.includes(1) && ethereumBalance.data) {
-                    console.log('✅ Adding ETH balance:', ethereumBalance.data.value.toString());
                     allBalances.push({
                         chainId: 1,
                         chainName: getChainNameFromId(1),
@@ -102,7 +97,6 @@ export default function useTokenBalance(
                 }
 
                 if (chainIds.includes(8453) && baseBalance.data) {
-                    console.log('✅ Adding Base ETH balance:', baseBalance.data.value.toString());
                     allBalances.push({
                         chainId: 8453,
                         chainName: getChainNameFromId(8453),
@@ -116,7 +110,6 @@ export default function useTokenBalance(
                 }
 
                 if (chainIds.includes(42161) && arbitrumBalance.data) {
-                    console.log('✅ Adding Arbitrum ETH balance:', arbitrumBalance.data.value.toString());
                     allBalances.push({
                         chainId: 42161,
                         chainName: getChainNameFromId(42161),
@@ -130,7 +123,6 @@ export default function useTokenBalance(
                 }
 
                 if (chainIds.includes(137) && polygonBalance.data) {
-                    console.log('✅ Adding Polygon MATIC balance:', polygonBalance.data.value.toString());
                     allBalances.push({
                         chainId: 137,
                         chainName: getChainNameFromId(137),
@@ -143,13 +135,9 @@ export default function useTokenBalance(
                     });
                 }
 
-                console.log(`📊 Native balances: ${allBalances.length} tokens`);
-
-                // Fetch ERC20 tokens for each chain via API route
-                console.log('🔍 Fetching ERC20 tokens from API...');
+                // Fetch ERC20 tokens
                 const tokenPromises = chainIds.map(async (chainId) => {
                     try {
-                        console.log(`🌐 Fetching tokens for chain ${chainId}...`);
                         const response = await fetch('/api/tokens/balances', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -160,21 +148,15 @@ export default function useTokenBalance(
                         });
 
                         if (!response.ok) {
-                            console.error(`❌ HTTP error for chain ${chainId}! status: ${response.status}`);
-                            const errorText = await response.text();
-                            console.error(`❌ Error response:`, errorText);
+                            console.error(`❌ HTTP error for chain ${chainId}:`, response.status);
                             return [];
                         }
 
                         const data = await response.json();
-                        console.log(`✅ Chain ${chainId} response:`, data);
 
                         if (!data.tokens || !Array.isArray(data.tokens)) {
-                            console.warn(`⚠️ Chain ${chainId}: Invalid tokens data`, data);
                             return [];
                         }
-
-                        console.log(`✅ Chain ${chainId}: Found ${data.tokens.length} ERC20 tokens`);
 
                         return data.tokens.map((token: any) => ({
                             chainId,
@@ -193,14 +175,10 @@ export default function useTokenBalance(
                 });
 
                 const tokenResults = await Promise.all(tokenPromises);
-                const allTokenBalances = tokenResults
-                    .flat()
-                    .filter(isDefined);
-
-                console.log(`✅ Total ERC20 tokens: ${allTokenBalances.length}`);
+                const allTokenBalances = tokenResults.flat().filter(isDefined);
 
                 const finalBalances = [...allBalances, ...allTokenBalances];
-                console.log(`🎉 Final total balances: ${finalBalances.length}`, finalBalances);
+                console.log(`🎉 Final total balances: ${finalBalances.length}`);
 
                 setBalances(finalBalances);
             } catch (err) {
@@ -209,14 +187,13 @@ export default function useTokenBalance(
                 setError(errorObj);
             } finally {
                 setIsLoading(false);
-                console.log('✅ useTokenBalance: Fetch complete');
             }
         };
 
         fetchAllTokenBalances();
     }, [
+        enabled, // ✅ Add enabled to deps
         targetAddress,
-        // Don't include chainIds in deps to avoid unnecessary refetches
         ethereumBalance.data,
         baseBalance.data,
         arbitrumBalance.data,
@@ -224,22 +201,18 @@ export default function useTokenBalance(
     ]);
 
     const finalIsLoading = isLoading ||
-        ethereumBalance.isLoading ||
-        baseBalance.isLoading ||
-        arbitrumBalance.isLoading ||
-        polygonBalance.isLoading;
+        (enabled && (
+            ethereumBalance.isLoading ||
+            baseBalance.isLoading ||
+            arbitrumBalance.isLoading ||
+            polygonBalance.isLoading
+        ));
 
     const finalError = error ||
         ethereumBalance.error ||
         baseBalance.error ||
         arbitrumBalance.error ||
         polygonBalance.error;
-
-    console.log('🔍 useTokenBalance state:', {
-        balancesCount: balances.length,
-        isLoading: finalIsLoading,
-        hasError: !!finalError,
-    });
 
     return {
         balances,

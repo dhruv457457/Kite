@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback } from 'react';
 import { executeRoute as sdkExecuteRoute } from '@lifi/sdk';
 import { useAccount, useSwitchChain } from 'wagmi';
@@ -23,8 +25,8 @@ interface UseLifiExecuteResult {
 }
 
 export default function useLifiExecute(): UseLifiExecuteResult {
-    const { address, chain } = useAccount(); // ✅ Get current chain
-    const { switchChainAsync } = useSwitchChain(); // ✅ Chain switching
+    const { address, chain } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
 
     const [isExecuting, setIsExecuting] = useState(false);
     const [progress, setProgress] = useState<ExecutionProgress | null>(null);
@@ -34,6 +36,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
         deposit?: string;
     }>({});
     const [error, setError] = useState<Error | null>(null);
+    const [hasCalledSuccess, setHasCalledSuccess] = useState(false);
 
     const updateStepProgress = useCallback(
         (
@@ -64,6 +67,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
     );
 
     const collectTxHash = useCallback((type: 'swap' | 'bridge' | 'deposit', hash: string) => {
+        console.log(`💾 Collecting ${type} tx hash:`, hash);
         setTxHashes((prev) => ({
             ...prev,
             [type]: hash,
@@ -98,10 +102,11 @@ export default function useLifiExecute(): UseLifiExecuteResult {
             setIsExecuting(true);
             setError(null);
             setTxHashes({});
+            setHasCalledSuccess(false);
             setProgress(createInitialProgress(route));
 
             try {
-                // ✅ CRITICAL: Check and switch chain if needed
+                // Chain switching logic
                 const requiredChainId = route.fromChainId;
                 const currentChainId = chain?.id;
 
@@ -114,7 +119,6 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                 if (currentChainId !== requiredChainId) {
                     console.log(`🔄 Switching from chain ${currentChainId} to ${requiredChainId}...`);
 
-                    // ✅ Add a temporary "switching network" step to progress
                     setProgress({
                         status: 'executing',
                         currentStep: 0,
@@ -129,24 +133,20 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                     try {
                         await switchChainAsync({ chainId: requiredChainId });
                         console.log('✅ Chain switched successfully!');
-
-                        // Wait a bit for wallet to settle after chain switch
                         await new Promise(resolve => setTimeout(resolve, 1500));
-
-                        // Reset progress after successful chain switch
                         setProgress(createInitialProgress(route));
                     } catch (switchError) {
                         console.error('❌ Chain switch failed:', switchError);
                         throw new Error(
-                            `Please switch to the correct network in your wallet.\nRequired: Chain ID ${requiredChainId}\nCurrent: Chain ID ${currentChainId}`
+                            `Please switch to the correct network in your wallet.\nRequired: Chain ID ${requiredChainId}`
                         );
                     }
                 }
 
                 console.log('🚀 Starting route execution with', route.steps.length, 'steps');
 
-                // ✅ Execute the route via LI.FI SDK
-                const result = await sdkExecuteRoute(route, {
+                // Execute the route via LI.FI SDK
+                const executionPromise = sdkExecuteRoute(route, {
                     updateRouteHook: (updatedRoute: any) => {
                         try {
                             console.log('📡 Route update received:', {
@@ -154,7 +154,53 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                                 steps: updatedRoute.steps?.length,
                             });
 
-                            // Find current executing step
+                            // Track transaction hashes and optimistically mark as completed
+                            const allTxHashes: string[] = [];
+
+                            updatedRoute.steps.forEach((step: any, index: number) => {
+                                const stepType = getStepType(step);
+                                const stepStatus = step.execution?.status || 'PENDING';
+                                const txHash = step.execution?.process?.[0]?.txHash;
+
+                                // Collect tx hash
+                                if (txHash) {
+                                    allTxHashes.push(txHash);
+                                    collectTxHash(stepType, txHash);
+                                }
+
+                                // OPTIMISTIC: Mark as completed if tx is submitted (has txHash)
+                                if (txHash) {
+                                    console.log(`✅ Step ${index + 1} tx submitted: ${stepType} - ${txHash.slice(0, 10)}...`);
+                                    updateStepProgress(index, 'completed', txHash);
+                                } else if (stepStatus === 'ACTION_REQUIRED' || stepStatus === 'PENDING') {
+                                    console.log(`⏳ Step ${index + 1} executing: ${stepType}`);
+                                    updateStepProgress(index, 'executing');
+                                } else if (stepStatus === 'DONE') {
+                                    console.log(`✅ Step ${index + 1} completed: ${stepType}`);
+                                    updateStepProgress(index, 'completed', txHash);
+                                } else if (stepStatus === 'FAILED') {
+                                    const errorMsg = step.execution?.process?.[0]?.error?.message || 'Step failed';
+                                    console.error(`❌ Step ${index + 1} failed:`, errorMsg);
+                                    updateStepProgress(index, 'failed', undefined, errorMsg);
+                                }
+                            });
+
+                            // EARLY SUCCESS: Call success callback once all steps have txHashes
+                            const allStepsSubmitted = updatedRoute.steps.length > 0 &&
+                                updatedRoute.steps.every((step: any) => step.execution?.process?.[0]?.txHash);
+
+                            if (allStepsSubmitted && !hasCalledSuccess && callbacks?.onSuccess) {
+                                console.log('🎉 All transactions submitted! Calling success callback...');
+                                setHasCalledSuccess(true);
+
+                                // Small delay for better UX (let user see the completion animation)
+                                setTimeout(() => {
+                                    callbacks.onSuccess?.(updatedRoute);
+                                    setIsExecuting(false);
+                                }, 1500);
+                            }
+
+                            // Call step update callback
                             const executingStepIndex = updatedRoute.steps.findIndex(
                                 (step: any) =>
                                     step.execution?.status === 'PENDING' ||
@@ -162,50 +208,11 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                             );
 
                             if (executingStepIndex !== -1) {
-                                const step = updatedRoute.steps[executingStepIndex];
-                                const stepType = getStepType(step);
-
-                                console.log(`⏳ Step ${executingStepIndex + 1} executing:`, stepType);
-
-                                updateStepProgress(
-                                    executingStepIndex,
-                                    'executing'
-                                );
-
-                                if (step.execution?.process?.[0]?.txHash) {
-                                    const txHash = step.execution.process[0].txHash;
-                                    console.log(`✅ Transaction hash for ${stepType}:`, txHash);
-                                    collectTxHash(stepType, txHash);
-                                    updateStepProgress(executingStepIndex, 'executing', txHash);
-                                }
-
                                 callbacks?.onStepUpdate?.(executingStepIndex, 'executing');
                             }
 
-                            // Check for completed steps
-                            updatedRoute.steps.forEach((step: any, index: number) => {
-                                if (step.execution?.status === 'DONE') {
-                                    const stepType = getStepType(step);
-                                    const txHash = step.execution?.process?.[0]?.txHash;
-
-                                    console.log(`✅ Step ${index + 1} completed:`, stepType);
-
-                                    updateStepProgress(index, 'completed', txHash);
-
-                                    if (txHash) {
-                                        collectTxHash(stepType, txHash);
-                                    }
-                                }
-
-                                if (step.execution?.status === 'FAILED') {
-                                    const errorMsg =
-                                        step.execution?.process?.[0]?.error?.message || 'Step failed';
-                                    console.error(`❌ Step ${index + 1} failed:`, errorMsg);
-                                    updateStepProgress(index, 'failed', undefined, errorMsg);
-                                }
-                            });
                         } catch (err) {
-                            console.error('Error processing route update:', err);
+                            console.error('❌ Error processing route update:', err);
                         }
                     },
 
@@ -222,10 +229,22 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                         const isIncrease = newAmountNum > oldAmountNum;
 
                         const message = isIncrease
-                            ? `Exchange rate improved by ${percentChange}%. You'll receive ${newAmountNum} ${toToken.symbol} instead of ${oldAmountNum}. Accept new rate?`
-                            : `Exchange rate decreased by ${percentChange}%. You'll receive ${newAmountNum} ${toToken.symbol} instead of ${oldAmountNum}. Continue anyway?`;
+                            ? `✅ Exchange rate improved by ${percentChange}%!\n\nYou'll receive ${newAmountNum} ${toToken.symbol} instead of ${oldAmountNum}.\n\nAccept new rate?`
+                            : `⚠️ Exchange rate decreased by ${percentChange}%.\n\nYou'll receive ${newAmountNum} ${toToken.symbol} instead of ${oldAmountNum}.\n\nContinue anyway?`;
 
-                        console.log('⚠️ Exchange rate update:', message);
+                        console.log('💱 Exchange rate update:', message);
+
+                        // Auto-accept improvements
+                        if (isIncrease) {
+                            console.log('✅ Auto-accepting rate improvement');
+                            return true;
+                        }
+
+                        // For decreases, only prompt if significant (>1%)
+                        if (parseFloat(percentChange) < 1) {
+                            console.log('✅ Auto-accepting minor rate change (<1%)');
+                            return true;
+                        }
 
                         const accepted = window.confirm(message);
 
@@ -239,19 +258,26 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                     infiniteApproval: false,
                 });
 
-                // Mark all steps as completed
-                if (progress) {
-                    progress.steps.forEach((_, index) => {
-                        updateStepProgress(index, 'completed');
-                    });
+                // Wait for execution to complete (but success is already shown)
+                await executionPromise;
+
+                console.log('✅ Route execution fully completed (including confirmations)');
+
+                // Update final status
+                setProgress(prev => prev ? { ...prev, status: 'completed' } : null);
+
+                // ✅ FIX: Ensure success callback is called if not already called
+                if (!hasCalledSuccess && callbacks?.onSuccess) {
+                    console.log('🎉 Calling success callback after full completion (fallback)');
+                    setHasCalledSuccess(true);
+                    callbacks.onSuccess?.(route);
                 }
 
-                console.log('✅ Route execution completed successfully');
+                // ✅ Always stop executing state
+                setIsExecuting(false);
 
-                callbacks?.onSuccess?.(result);
             } catch (err) {
-                const error =
-                    err instanceof Error ? err : new Error('Transaction execution failed');
+                const error = err instanceof Error ? err : new Error('Transaction execution failed');
 
                 console.error('❌ Execution error:', error);
                 setError(error);
@@ -265,12 +291,11 @@ export default function useLifiExecute(): UseLifiExecuteResult {
                     );
                 }
 
-                callbacks?.onError?.(error);
-            } finally {
                 setIsExecuting(false);
+                callbacks?.onError?.(error);
             }
         },
-        [address, chain, switchChainAsync, progress, updateStepProgress, collectTxHash]
+        [address, chain, switchChainAsync, progress, updateStepProgress, collectTxHash, hasCalledSuccess]
     );
 
     const reset = useCallback(() => {
@@ -278,6 +303,7 @@ export default function useLifiExecute(): UseLifiExecuteResult {
         setProgress(null);
         setTxHashes({});
         setError(null);
+        setHasCalledSuccess(false);
     }, []);
 
     return {

@@ -49,7 +49,7 @@ export default function HistoryPage() {
             <div className="max-w-6xl mx-auto">
                 {/* Page Header */}
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Transaction History</h1>
+                    <h1 className="text-3xl font-bold text-zinc-400 mb-2">Transaction History</h1>
                     <p className="text-zinc-400">
                         View all your past cross-chain swaps, bridges, and deposits
                     </p>

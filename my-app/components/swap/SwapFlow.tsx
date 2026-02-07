@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import type { ENSProfile } from '@/types/ens';
 import { AmountInput } from './AmountInput';
-import { TokenSelector } from './TokenSelector';
+import { TokenSelectorInline } from './TokenSelectorInline';
 import { RouteDisplay } from './RouteDisplay';
 import { ConfirmTransaction } from './ConfirmTransaction';
 import { TransactionReceipt } from './TransactionReceipt';
@@ -13,8 +13,9 @@ import useLifiRoute from '@/hooks/useLifiRoute';
 import useLifiExecute from '@/hooks/useLifiExecute';
 import useTokenBalance from '@/hooks/useTokenBalance';
 import { useAccount } from 'wagmi';
-import { parseUnits, encodeFunctionData } from 'viem';
-import type { SelectedToken } from './TokenSelector';
+import { parseUnits } from 'viem';
+import type { SelectedToken } from './TokenSelectorInline';
+import { formatTokenAmount } from '@/lib/utils/formatters';
 
 interface SwapFlowProps {
     recipientProfile: ENSProfile;
@@ -23,8 +24,6 @@ interface SwapFlowProps {
 
 type FlowStep = 'select' | 'route' | 'confirm' | 'receipt';
 
-
-
 export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
     const { address } = useAccount();
     const [currentStep, setCurrentStep] = useState<FlowStep>('select');
@@ -32,8 +31,11 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
     const [amount, setAmount] = useState<string>('');
     const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState<boolean>(false);
 
-    // Fetch user's token balances
-    const { balances, isLoading: isLoadingBalances } = useTokenBalance({ address });
+    // ✅ Disable token balance fetching during execution
+    const { balances, isLoading: isLoadingBalances } = useTokenBalance({
+        address,
+        enabled: currentStep !== 'confirm' && currentStep !== 'receipt'
+    });
 
     // Memoize recipient chain ID
     const recipientChainId = useMemo(() => {
@@ -83,15 +85,13 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         }
     }, [amount, selectedToken]);
 
-    // ✅ SIMPLIFIED: Just check if depositTarget exists
+    // Check if vault deposit
     const isVaultDeposit = useMemo(() => {
         return Boolean(
             recipientProfile.depositTarget &&
             recipientProfile.depositTarget !== '0x0000000000000000000000000000000000000000'
         );
     }, [recipientProfile.depositTarget]);
-
-
 
     // Memoize route request params
     const routeParams = useMemo(() => {
@@ -111,7 +111,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
             fromAmount: parsedAmount.toString(),
             fromAddress: address || ('0x0000000000000000000000000000000000000000' as `0x${string}`),
             toAddress: recipientProfile.address,
-            vaultAddress: isVaultDeposit ? recipientProfile.depositTarget : undefined, // ✅ Just pass vault address
+            vaultAddress: isVaultDeposit ? recipientProfile.depositTarget : undefined,
             enabled: currentStep === 'route' && !!amount && !!selectedToken && parsedAmount > BigInt(0),
         };
 
@@ -162,6 +162,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
     const handleTokenSelect = useCallback((token: SelectedToken) => {
         console.log('🪙 Token selected:', token.symbol, 'on', token.chainName);
         setSelectedToken(token);
+        setIsTokenSelectorOpen(false);
     }, []);
 
     const handleAmountChange = useCallback((value: string) => {
@@ -187,16 +188,16 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
 
         try {
             await executeRoute(selectedRoute, {
-                onSuccess: () => {
-                    console.log('✅ Execution successful!');
+                onSuccess: (result) => {
+                    console.log('✅ SUCCESS CALLBACK RECEIVED! Navigating to receipt...', {
+                        hasResult: !!result,
+                        currentStep,
+                    });
                     setCurrentStep('receipt');
                 },
                 onError: (error) => {
-                    console.error('❌ Execution failed:', error);
-
-                    // ✅ Show specific error for chain switching
+                    console.error('❌ ERROR CALLBACK RECEIVED:', error);
                     if (error.message.includes('switch to the correct network')) {
-                        // User will see the MetaMask popup to switch chains
                         console.log('⚠️ Waiting for user to switch chains...');
                     }
                 },
@@ -204,7 +205,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
         } catch (error) {
             console.error('❌ Failed to execute route:', error);
         }
-    }, [selectedRoute, executeRoute]);
+    }, [selectedRoute, executeRoute, currentStep]);
 
     const handleStartOver = useCallback(() => {
         console.log('🔄 Starting over');
@@ -229,7 +230,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                     </h2>
                     <p className="text-sm text-slate">
                         {isVaultDeposit
-                            ? `✅ Will deposit to Spark ${recipientProfile.preferredToken} vault on ${recipientProfile.preferredChain}`
+                            ? `✅ Will deposit to ${recipientProfile.preferredToken} vault on ${recipientProfile.preferredChain}`
                             : `Sending ${recipientProfile.preferredToken} on ${recipientProfile.preferredChain}`
                         }
                     </p>
@@ -252,7 +253,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
             )}
 
             {/* Progress Steps */}
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 overflow-x-auto">
                 {['Select Token', 'Get Route', 'Confirm', 'Complete'].map((step, index) => (
                     <React.Fragment key={step}>
                         <div
@@ -290,40 +291,69 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                         <CardTitle>Select Token & Amount</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <button
-                            onClick={() => setIsTokenSelectorOpen(true)}
-                            className="w-full p-4 bg-white border border-silver rounded-xl hover:border-cyber-yellow hover:shadow-yellow-glow transition-all shadow-soft"
-                        >
-                            {selectedToken ? (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyber-yellow to-cyber-yellow-dark flex items-center justify-center text-charcoal font-bold shadow-soft">
-                                            {selectedToken.symbol.charAt(0)}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsTokenSelectorOpen(!isTokenSelectorOpen)}
+                                className="w-full p-6 bg-gradient-to-br from-white to-light-grey border-2 border-silver rounded-xl hover:border-cyber-yellow hover:shadow-yellow-glow transition-all shadow-md group"
+                            >
+                                {selectedToken ? (
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyber-yellow to-cyber-yellow-dark flex items-center justify-center text-charcoal font-bold text-xl shadow-lg">
+                                                {selectedToken.symbol.charAt(0)}
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="font-bold text-charcoal text-xl">{selectedToken.symbol}</div>
+                                                <div className="text-sm text-slate">{selectedToken.chainName}</div>
+                                                <div className="text-xs text-slate mt-1">
+                                                    Balance: {formatTokenAmount(selectedToken.balance, selectedToken.decimals, 4)}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-left">
-                                            <div className="font-medium text-charcoal">{selectedToken.symbol}</div>
-                                            <div className="text-sm text-slate">{selectedToken.chainName}</div>
-                                        </div>
+                                        <svg
+                                            className={`w-6 h-6 text-cyber-yellow transition-transform ${isTokenSelectorOpen ? 'rotate-180' : ''}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
                                     </div>
-                                    <svg className="w-5 h-5 text-slate" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate">Select a token</span>
-                                    <svg className="w-5 h-5 text-slate" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
+                                ) : (
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 rounded-full bg-cyber-yellow/20 flex items-center justify-center">
+                                                <svg className="w-7 h-7 text-cyber-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                </svg>
+                                            </div>
+                                            <div className="text-left">
+                                                <span className="text-lg font-semibold text-charcoal">Select Token to Send</span>
+                                                <p className="text-sm text-slate">Choose from your wallet</p>
+                                            </div>
+                                        </div>
+                                        <svg
+                                            className={`w-6 h-6 text-slate transition-transform ${isTokenSelectorOpen ? 'rotate-180' : ''}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </button>
+
+                            {isTokenSelectorOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 z-50">
+                                    <TokenSelectorInline
+                                        onSelect={handleTokenSelect}
+                                        onClose={() => setIsTokenSelectorOpen(false)}
+                                        recipientToken={recipientProfile.preferredToken}
+                                    />
                                 </div>
                             )}
-                        </button>
-
-                        <TokenSelector
-                            isOpen={isTokenSelectorOpen}
-                            onClose={() => setIsTokenSelectorOpen(false)}
-                            onSelect={handleTokenSelect}
-                        />
+                        </div>
 
                         {selectedToken && (
                             <AmountInput
@@ -374,7 +404,6 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                         <>
                             <RouteDisplay route={selectedRoute} isLoading={false} />
 
-                            {/* Vault deposit info if active */}
                             {isVaultDeposit && (
                                 <Card className="bg-blue-50 border-blue-300">
                                     <CardContent className="py-4">
@@ -386,7 +415,7 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
                                                 <div className="flex-1">
                                                     <p className="text-sm font-medium text-blue-900">🎯 Vault Deposit Workflow</p>
                                                     <p className="text-xs text-blue-700 mt-1">
-                                                        This transaction will: swap your tokens → bridge to {recipientProfile.preferredChain} → deposit into Spark vault.
+                                                        This transaction will: swap your tokens → bridge to {recipientProfile.preferredChain} → deposit into vault.
                                                         Recipient receives vault shares (interest-bearing) in one transaction!
                                                     </p>
                                                 </div>
@@ -442,4 +471,4 @@ export function SwapFlow({ recipientProfile, onBack }: SwapFlowProps) {
             )}
         </div>
     );
-}
+} 
