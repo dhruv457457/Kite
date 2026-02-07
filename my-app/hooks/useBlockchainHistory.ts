@@ -118,19 +118,20 @@ export function useBlockchainHistory(): UseBlockchainHistoryResult {
                     // Combine incoming and outgoing
                     const rawTxs = [...data.transfers, ...incomingData.transfers];
 
-                    const chainTxs: BlockchainTransaction[] = rawTxs.map(tx => ({
-                        hash: tx.hash,
-                        from: tx.from,
-                        to: tx.to || '',
-                        // Alchemy returns value as a number, convert to string
-                        value: tx.value?.toString() || '0',
-                        tokenSymbol: tx.asset || 'ETH',
-                        tokenName: tx.asset || 'Ether',
-                        timestamp: tx.metadata.blockTimestamp ? new Date(tx.metadata.blockTimestamp).getTime() : Date.now(),
-                        chainId: chainId,
-                        status: 'success', // Alchemy history generally implies success
-                        blockNum: tx.blockNum
-                    }));
+              // In useBlockchainHistory.tsx
+const chainTxs: BlockchainTransaction[] = rawTxs.map(tx => ({
+    hash: tx.hash,
+    from: tx.from,
+    to: tx.to || '',
+    // ✅ Use rawContract.value for accurate wei amounts
+    value: tx.rawContract?.value || '0',
+    tokenSymbol: tx.asset || 'ETH',
+    tokenName: tx.asset || 'Ether',
+    timestamp: tx.metadata.blockTimestamp ? new Date(tx.metadata.blockTimestamp).getTime() : Date.now(),
+    chainId: chainId,
+    status: 'success',
+    blockNum: tx.blockNum
+}));
 
                     allTransactions.push(...chainTxs);
 

@@ -1,380 +1,590 @@
-# Kite
-### LI.FI & ENS-Powered Cross-Chain Swap & Deposit Hub
+# Kite Finance
+
+**Cross-Chain DeFi Deposits Made Simple**
+
+Send funds to any DeFi vault across any chain in one click. Just type an ENS name.
+
+🔗 **Live Demo:** [kite-lifi.vercel.app](https://kite-lifi.vercel.app/)
 
 ---
 
-## 1. Project Overview
+## 🎯 What is Kite?
 
-Kite is a unified DeFi interface powered by LI.FI and ENS that lets users send, swap, bridge, and deposit tokens into DeFi vaults on any EVM chain — just by typing a name. It uses LI.FI Composer to orchestrate multi-step cross-chain workflows (swap + bridge + vault deposit) and ENS to store where and how each recipient wants to receive funds. It removes the friction of cross-chain DeFi by combining two layers:
+Kite Finance is a cross-chain DeFi deposit aggregator that eliminates the complexity of multi-chain yield strategies. Instead of manually swapping, bridging, and depositing across multiple transactions, Kite combines everything into a single, seamless flow powered by LI.FI and ENS.
 
-- **ENS** handles identity, preferences, and routing metadata (where the money should go)
-- **LI.FI** handles execution, routing, and orchestration (how the money gets there)
+**The Problem:**
+To deposit into a vault on another chain, users typically need to:
+1. Swap their token to the correct asset
+2. Bridge to the destination chain
+3. Manually call the vault's deposit function
+4. Track multiple transaction hashes across chains
 
-A user types `alex.eth`, selects a token from their wallet, enters an amount, and Kite does the rest — swap, bridge, and deposit into the recipient's configured vault — all in one transaction with one signature.
-
----
-
-## 2. The Problem We Solve
-
-Cross-chain DeFi today is broken for most users. To deposit into a vault on another chain, a user must:
-
-1. Figure out which chain the vault lives on
-2. Figure out which token the vault accepts
-3. Manually swap their token into the right one
-4. Manually bridge to the correct chain
-5. Manually call the deposit function
-6. Do all of this while knowing the recipient's 0x address
-
-Kite collapses all five steps into one action. The recipient sets up their preferences once via ENS text records. The sender just needs to know a name.
+**Kite's Solution:**
+1. Type an ENS name (e.g., `alice.eth`)
+2. Select any token from any chain
+3. Click confirm
+4. Done — recipient receives vault shares and starts earning yield immediately
 
 ---
 
-## 3. Prize Track Alignment
+## ✨ Key Features
 
-### Primary: 🥇 Best Use of LI.FI Composer in DeFi — $2,500
+### 🔗 ENS-Powered Routing
+- **Set Once, Receive Forever:** Configure your preferred chain, token, and vault in your ENS profile
+- **Named Recipients:** Send to `vitalik.eth` instead of `0x1a2b3c...`
+- **Dynamic Intent:** ENS text records store your DeFi preferences, making every deposit personalized
 
-Kite directly hits the example: **"Cross-chain deposit into a vault"** and **"Deposit from any chain into a single restaking or yield strategy."**
+### ⚡ LI.FI Composer Integration
+- **One-Click Execution:** Swap + Bridge + Vault Deposit in a single transaction
+- **Optimal Routing:** Automatically finds the best DEX and bridge combination
+- **Multi-Vault Support:** Works with Aave, Morpho, Spark, and any ERC-4626 vault
+- **Cross-Chain Native:** Supports Ethereum, Base, Arbitrum, and Polygon
 
-Our core flow is exactly this. The user picks any token on any chain. LI.FI Composer orchestrates the entire multi-step workflow — swap + bridge + contract call (vault deposit) — in a single user-facing action. The destination vault, chain, and token are all read dynamically from the recipient's ENS profile, making every execution path unique and data-driven.
-
-This satisfies all qualification requirements:
-- Uses LI.FI SDK/API for cross-chain actions (swap + bridge + contract call)
-- Supports multiple EVM chains (Ethereum, Arbitrum, Base, Polygon)
-- Ships a working frontend a judge can click through
-
-### Secondary: 🥇 Most Creative Use of ENS for DeFi — $1,500
-
-ENS is not a label here — it is the routing engine. ENS text records store:
-- The recipient's preferred receiving chain
-- The recipient's preferred token
-- The recipient's deposit target (vault, LP pool, restaking contract)
-
-This makes ENS the configuration and intent layer that drives what LI.FI executes. Without ENS, Kite is just a generic swap UI. With ENS, it becomes a personalized, intent-driven deposit system.
-
-### Tertiary: 🎉 Integrate ENS — $3,500 (pool prize)
-
-Custom ENS resolution using wagmi hooks to read and write text records. Not a simple name lookup — full read/write of structured DeFi preferences.
-
-### Tertiary: 🥉 Best LI.FI-Powered DeFi Integration — $1,500
-
-Solves a concrete user problem (cross-chain deposits to named recipients) with a production-ready integration that handles slippage, gas estimation, error states, and route visualization.
+### 💎 Superior UX
+- **Live Route Preview:** See the exact swap → bridge → deposit pipeline before execution
+- **Real-Time Progress:** Step-by-step transaction tracking with live status updates
+- **Gas Estimation:** Transparent cost breakdown per step
+- **Error Recovery:** Clear error messages with actionable solutions
 
 ---
 
-## 4. How It Works — User Flow
+## 🏗️ How It Works
 
-### Sender Side
-
-```
-1.  Open Kite
-2.  Type an ENS name (e.g. alex.eth)
-3.  Kite reads alex.eth's ENS text records:
-        preferred_chain  →  Arbitrum
-        preferred_token  →  USDC
-        deposit_target   →  0x1a2b...  (Aave Vault)
-4.  Sender selects a token from their wallet (e.g. ETH on Ethereum)
-5.  Sender enters an amount (e.g. 0.5 ETH)
-6.  Kite calls LI.FI API to find the best route:
-        LI.FI picks: Uniswap V3 for the swap, Stargate for the bridge
-        Route: Swap ETH → USDC on Ethereum
-               Bridge USDC from Ethereum → Arbitrum via Stargate
-               Deposit USDC into Aave Vault (0x1a2b...) via contract call
-7.  Kite displays the full route pipeline to the sender:
-        [Swap - Uniswap V3] → [Bridge - Stargate] → [Deposit - Aave Vault]
-        Gas: $0.42 | Slippage: 0.5% | Time: ~30s | Output: 490.2 USDC
-8.  Sender confirms with one signature
-9.  LI.FI SDK executes the full pipeline automatically:
-        Approve → Swap → Bridge (polling until confirmed) → Vault Deposit
-10. Kite shows receipt with per-step tx hashes and final vault shares received
-```
-
-### Recipient Side (Setup — Done Once)
+### For Senders
 
 ```
-1. Open Kite → My Profile
-2. Connect wallet with ENS name
-3. Set preferences:
-       Preferred Chain     →  Arbitrum
-       Preferred Token     →  USDC
-       Deposit Target      →  0x1a2b... (paste vault address)
-4. Save (writes to ENS text records)
-5. Now anyone can deposit to you cross-chain by typing your ENS name
-```
-https://chain-flow--2023pceitdhruv0.replit.app/
----
+1. Search ENS Name
+   └─ Type "alex.eth" → Kite reads ENS text records
 
-## 5. Architecture
+2. Kite Fetches Preferences
+   └─ Chain: Arbitrum
+   └─ Token: USDC  
+   └─ Vault: 0x1a2b... (Aave USDC Vault)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                      Kite UI                        │
-│                                                         │
-│  ┌──────────┐    ┌──────────────┐    ┌────────────────┐ │
-│  │ ENS      │    │  Route       │    │  Execute &     │ │
-│  │ Lookup   │───▶│  Builder     │───▶│  Confirm       │ │
-│  │          │    │              │    │                │ │
-│  └──────────┘    └──────────────┘    └────────────────┘ │
-│       │                │                     │           │
-└───────┼────────────────┼─────────────────────┼───────────┘
-        │                │                     │
-        ▼                ▼                     ▼
-┌──────────────┐  ┌─────────────┐   ┌──────────────────┐
-│  ENS Layer   │  │  LI.FI API  │   │  LI.FI SDK       │
-│              │  │             │   │                  │
-│ Read/Write   │  │ Get Quotes  │   │ Execute Route    │
-│ Text Records │  │ Get Routes  │   │ Swap+Bridge+Call │
-│              │  │             │   │                  │
-└──────────────┘  └─────────────┘   └──────────────────┘
-        │                │                     │
-        ▼                ▼                     ▼
-┌──────────────────────────────────────────────────────┐
-│           EVM Chains (Ethereum, Arbitrum,            │
-│                      Base, Polygon)                   │
-│                                                      │
-│  ENS Contracts   │  DEXs  │  Bridges  │  Vaults     │
-└──────────────────────────────────────────────────────┘
+3. Select Your Token
+   └─ Pick any token from any chain in your wallet
+   └─ Example: 0.5 ETH on Ethereum
+
+4. Get Route (Powered by LI.FI)
+   └─ LI.FI finds optimal path:
+       • Swap ETH → USDC (Uniswap V3)
+       • Bridge Ethereum → Arbitrum (Stargate)
+       • Deposit USDC → Aave Vault (Contract Call)
+   └─ Shows: Gas ($0.42), Time (~30s), Output (490.2 USDC)
+
+5. Confirm & Execute
+   └─ One signature
+   └─ LI.FI SDK handles everything:
+       • Token approval
+       • Swap execution
+       • Bridge initiation
+       • Vault deposit
+   └─ Real-time progress for each step
+
+6. Receipt
+   └─ Transaction hashes for each step
+   └─ Vault shares received
+   └─ Final yield APY shown
 ```
 
-### ENS Layer
-- Reads text records from ENS names to extract recipient preferences
-- Writes text records when a user sets up their own profile
-- Uses wagmi hooks for resolution (not just RainbowKit name display)
-- Text record keys: `kite.preferred_chain`, `kite.preferred_token`, `kite.deposit_target`
+### For Recipients (One-Time Setup)
 
-### LI.FI Layer (Primary Execution Engine)
-Kite is built around LI.FI. Every core action in the app — swap, bridge, deposit — runs through LI.FI. This is not an optional add-on; LI.FI is the backbone that makes cross-chain execution possible.
+```
+1. Connect Wallet
+   └─ Must own an ENS name
 
-- **Route Discovery:** Kite calls the LI.FI API (`/v1/advanced/routes`) with the source token, source chain, destination token, destination chain, and the vault contract address as the final `toAddress`. LI.FI returns the optimal path across available DEXs and bridges automatically.
-- **Route Execution:** The LI.FI SDK takes the selected route and executes it end-to-end. It handles token approvals, swap calls, bridge initiation, bridge status polling, and the final contract call (vault deposit) — all without the user needing to sign multiple times.
-- **Multi-Step Orchestration (Composer):** Every route in Kite is a Composer-style workflow. It is never a single swap or a single bridge. It is always a pipeline: swap on source chain → bridge to destination chain → deposit into a DeFi contract. This is exactly what LI.FI Composer is designed for.
-- **Route Visualization:** Kite surfaces the full route pipeline to the user before execution — each step (swap, bridge, deposit), the DEX or bridge used, gas cost per step, and the expected output amount. This builds trust and transparency.
-- **Error Handling & Monitoring:** LI.FI SDK provides real-time status updates for each step. Kite listens to these events and updates the UI accordingly — showing progress, catching failures, and letting users know if a bridge is still pending.
+2. Configure Preferences
+   └─ Preferred Chain: Base
+   └─ Preferred Token: USDC
+   └─ Deposit Target: 0x7BfA... (Spark Vault)
+
+3. Save to ENS
+   └─ Writes to ENS text records:
+       • kite.preferred_chain
+       • kite.preferred_token  
+       • kite.deposit_target
+
+4. Done!
+   └─ Anyone can now send to your ENS name
+   └─ Funds automatically deposit into your configured vault
+```
 
 ---
 
-## 6. Tech Stack
+## 🔧 Technical Architecture
+
+### Tech Stack
 
 | Layer | Technology |
-|---|---|
-| Frontend Framework | React + Next.js |
+|-------|-----------|
+| Frontend | Next.js 14 (App Router), TypeScript, React |
 | Styling | Tailwind CSS |
-| Blockchain Interaction | wagmi + viem |
-| Wallet Connection | RainbowKit |
-| ENS Resolution | wagmi ENS hooks + ethers ENS resolver |
-| Cross-Chain Execution | LI.FI SDK + LI.FI API |
-| Hosting | Vercel |
+| Blockchain | Wagmi v2, Viem |
+| Wallet | RainbowKit |
+| ENS Integration | Wagmi ENS hooks (read/write text records) |
+| Cross-Chain Routing | LI.FI SDK + API |
+| Deployment | Vercel |
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                 Kite Frontend (Next.js)              │
+│                                                      │
+│  ┌──────────┐   ┌─────────────┐   ┌──────────────┐ │
+│  │   ENS    │──▶│   LI.FI     │──▶│   Execution  │ │
+│  │  Lookup  │   │   Router    │   │   & Monitor  │ │
+│  └──────────┘   └─────────────┘   └──────────────┘ │
+└─────────┬────────────────┬─────────────────┬────────┘
+          │                │                 │
+          ▼                ▼                 ▼
+┌──────────────┐  ┌─────────────┐  ┌─────────────────┐
+│ ENS Registry │  │  LI.FI API  │  │   LI.FI SDK     │
+│  (Mainnet)   │  │             │  │                 │
+│  Text Records│  │  • getQuote │  │ • executeRoute  │
+│  • Read/Write│  │  • getRoutes│  │ • Status hooks  │
+└──────────────┘  └─────────────┘  └─────────────────┘
+          │                │                 │
+          └────────────────┴─────────────────┘
+                           │
+          ┌────────────────┴─────────────────┐
+          │                                   │
+          ▼                                   ▼
+┌──────────────────┐              ┌──────────────────┐
+│  Source Chain    │              │ Destination Chain│
+│  (e.g. Ethereum) │              │  (e.g. Base)     │
+│                  │              │                  │
+│  • DEX Swap      │─────────────▶│  • Vault Deposit │
+│  • Bridge Out    │   Stargate   │  • Yield Earning │
+└──────────────────┘              └──────────────────┘
+```
+
+### ENS Integration
+
+Kite uses ENS text records as the configuration layer:
+
+| ENS Text Record | Example Value | Purpose |
+|----------------|---------------|---------|
+| `kite.preferred_chain` | `base` | Destination blockchain |
+| `kite.preferred_token` | `USDC` | Token the vault accepts |
+| `kite.deposit_target` | `0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A` | Vault contract address |
+
+**Reading:**
+```typescript
+// Fetch recipient preferences
+const { data: preferredChain } = useEnsText({
+  name: 'alice.eth',
+  key: 'kite.preferred_chain',
+  chainId: mainnet.id,
+});
+```
+
+**Writing:**
+```typescript
+// Save user preferences
+await setKiteProfile(
+  'base',           // preferred chain
+  'USDC',           // preferred token
+  '0x7BfA...'       // vault address
+);
+```
+
+### LI.FI Composer Integration
+
+Kite leverages LI.FI's Composer mode to chain multiple actions into one transaction:
+
+**Route Request:**
+```typescript
+const step = await getQuote({
+  fromChain: 1,                    // Ethereum
+  fromToken: '0x000...',          // ETH
+  toChain: 8453,                   // Base
+  toToken: '0x833...',            // USDC on Base
+  fromAmount: '500000000000000000', // 0.5 ETH
+  fromAddress: userWallet,
+  toAddress: vaultAddress,         // Triggers Composer
+  slippage: 0.005,
+  integrator: 'kite-finance',
+});
+```
+
+**Route Execution:**
+```typescript
+await executeRoute(route, {
+  updateRouteHook: (updatedRoute) => {
+    // Real-time progress updates
+    // Step 1: Swap executing...
+    // Step 2: Bridge pending...
+    // Step 3: Vault deposit confirmed!
+  },
+  acceptExchangeRateUpdateHook: async (update) => {
+    // Handle slippage changes
+    return confirm(`Accept ${update.percentChange}% change?`);
+  },
+});
+```
+
+**What Composer Enables:**
+- **Single Signature:** User approves once, LI.FI handles the rest
+- **Automatic Bridging:** Monitors bridge status until confirmed
+- **Contract Calls:** Final step deposits into vault, not just transfers tokens
+- **Error Recovery:** Each step is independently tracked and can be retried
 
 ---
 
-## 7. ENS Text Records Structure
+## 🎨 User Interface
 
-Each Kite user stores their DeFi preferences as ENS text records:
+### Home Page
+- ENS search bar (primary entry point)
+- Supported protocols showcase (Aave, Morpho, Spark)
+- Supported chains (Ethereum, Base, Arbitrum, Polygon)
+- How it works explainer
 
-| Record Key | Example Value | Purpose |
-|---|---|---|
-| `kite.preferred_chain` | `arbitrum` | The chain where deposits should land |
-| `kite.preferred_token` | `USDC` | The token the vault accepts |
-| `kite.deposit_target` | `0x1a2b3c...` | The vault/pool/restaking contract address |
+### Profile Card
+- Displays recipient's preferences
+- Shows configured vault and APY
+- Visual chain/token indicators
+- Send button to initiate flow
 
-These are read by anyone looking up that ENS name. They are written only by the ENS name owner via the My Profile page.
+### Swap Flow (4 Steps)
 
----
+**Step 1: Select Token**
+- Token selector showing balances across all chains
+- Live balance updates
+- Chain indicators
 
-## 8. LI.FI Integration Details
+**Step 2: Get Route**
+- LI.FI route fetching with loading state
+- Route visualization:
+  - Swap step (DEX name, input/output)
+  - Bridge step (bridge protocol, chains)
+  - Deposit step (vault name, shares received)
+- Gas breakdown per step
+- Total estimated time
+- Best route auto-selected
 
-LI.FI is the core execution layer of Kite. This section covers exactly how it is integrated and why.
+**Step 3: Confirm Transaction**
+- Full route preview
+- Slippage tolerance setting
+- Gas cost summary
+- Execute button
 
-### 8.1 Why LI.FI
-
-LI.FI is not just a bridge aggregator. It is a full cross-chain execution layer that can:
-- Find the best swap route across multiple DEXs on any chain
-- Find the best bridge between any two EVM chains
-- Chain these together with a contract call at the end (Composer)
-- Execute the entire pipeline with a single user signature
-
-No other single integration can do swap + bridge + contract call in one flow. That is what makes it the right fit for Kite.
-
-### 8.2 Route Request
-
-When a user selects a source token and the system has read the recipient's ENS preferences, Kite calls the LI.FI API:
-
-```
-POST /v1/advanced/routes
-
-Input:
-  fromChain:      Ethereum (1)
-  fromToken:      ETH (0x0000...)
-  toChain:        Arbitrum (42161)
-  toToken:        USDC (0xa0b8...)
-  fromAmount:     0.5 ETH
-  toAddress:      0x1a2b... (vault address from ENS)
-  destination:    CONTRACT_CALL (triggers Composer mode)
-
-Output:
-  Route steps:    [Swap ETH→USDC, Bridge Ethereum→Arbitrum, Deposit into Vault]
-  DEX used:       Uniswap V3 (source chain swap)
-  Bridge used:    Stargate (cross-chain transfer)
-  Gas estimate:   $0.42 (total across all steps)
-  Slippage:       0.5%
-  Estimated time: ~30 seconds
-  Output amount:  490.2 USDC (after fees and slippage)
-```
-
-LI.FI automatically picks the best DEX and bridge combination. Kite does not need to hardcode or manage any of this.
-
-### 8.3 Supported Chains & Bridges
-
-Kite leverages the full LI.FI network. Supported chains in the Kite prototype include:
-
-| Chain | Chain ID | Role in Kite |
-|---|---|---|
-| Ethereum Mainnet | 1 | Source chain, ENS resolution |
-| Arbitrum One | 42161 | Destination (Aave Vault) |
-| Base | 8453 | Destination (Maya's profile) |
-| Polygon | 137 | Source + Destination (Jake's LP Pool) |
-
-LI.FI routes across bridges like Stargate, Hop, and others automatically based on speed, cost, and reliability. Kite does not pick bridges manually — LI.FI handles that entirely.
-
-### 8.4 Route Execution (SDK)
-
-The LI.FI SDK takes the route returned by the API and executes it step by step:
-
-```
-Step 1 — Approve
-  └─ SDK submits ERC20 approval for the source token (if needed)
-
-Step 2 — Swap
-  └─ SDK calls the DEX (e.g. Uniswap V3) on the source chain
-  └─ ETH is swapped into USDC on Ethereum
-
-Step 3 — Bridge
-  └─ SDK initiates the bridge (e.g. Stargate)
-  └─ USDC is sent from Ethereum to Arbitrum
-  └─ SDK polls bridge status until confirmed
-
-Step 4 — Contract Call (Composer)
-  └─ SDK calls the vault deposit function on Arbitrum
-  └─ USDC is deposited into the Aave Vault at 0x1a2b...
-  └─ User now holds vault shares on Arbitrum
-```
-
-The user signs once at Step 1. Everything after that is handled by the SDK and the on-chain contracts. Kite listens to SDK status events and updates the UI in real time at each step.
-
-### 8.5 What Makes This "Composer"
-
-LI.FI Composer is specifically the feature that allows a route to end with a contract call — not just a token transfer. This is critical for Kite because the goal is never just to move tokens. The goal is to deposit them into a DeFi position.
-
-Without Composer, a cross-chain route would end with USDC sitting in the user's wallet on Arbitrum. The user would then have to manually call the vault's deposit function themselves. Composer removes that last step and makes it part of the automated pipeline.
-
-In Kite, every single route uses Composer because every recipient has a `deposit_target` configured via ENS. The contract call is not optional — it is the entire point.
-
-### 8.6 Error Handling & Edge Cases
-
-Kite handles the following failure scenarios via LI.FI SDK status events:
-
-| Scenario | How Kite Handles It |
-|---|---|
-| Swap slippage too high | Shows warning before execution; user can adjust slippage tolerance |
-| Bridge timeout | UI shows "Bridge pending" state; user can check status later via History |
-| Insufficient gas | Detected before execution; error shown with estimated gas needed |
-| Vault deposit reverts | UI shows failure with reason; tokens remain on destination chain (user can manually recover) |
-| Route no longer valid | Re-fetches route automatically; shows updated quote to user |
-
----
-
-## 9. Screens & Pages
-
-### Home / Dashboard
-- Search bar for ENS names (the main entry point)
-- Connected wallet info showing balances across chains
-- Recent activity feed showing past transactions
-
-### ENS Profile Card
-- Appears after searching a name
-- Shows the recipient's preferred chain, token, and vault
-- Entry point to the Send & Swap flow
-
-### Send & Swap Flow
-- Step 1: Pick your token (shows wallet balances across all chains)
-- Step 2: Enter amount (validates against balance, shows live output estimate)
-- Step 3: Get Route — this is where LI.FI does the heavy lifting:
-  - Calls LI.FI API to find the optimal swap + bridge + deposit path
-  - Displays the full route pipeline visually: which DEX, which bridge, which vault
-  - Shows gas cost breakdown per step, total slippage, and expected output
-  - User can see exactly what LI.FI will execute before they commit
-- Step 4: Confirm & Execute — powered entirely by LI.FI SDK:
-  - One signature from the user
-  - LI.FI SDK runs the full pipeline (approve → swap → bridge → deposit)
-  - Each step lights up in real time as it completes
-  - Final receipt shows output amount, vault shares received, and tx hashes for every step
+**Step 4: Receipt**
+- Per-step transaction hashes
+- Vault shares received
+- APY information
+- Blockchain explorer links
+- Start over button
 
 ### My Profile
-- Set your own ENS text records
-- Live preview of how others see your profile
-- Save triggers ENS text record write
-
-### History
-- List of all past transactions
-- Status indicators (completed, pending, failed)
-- Full details per transaction (route taken, amounts, timestamps)
-
----
-
-## 10. Prototype (Mock) Spec
-
-For the prototype / Replit build, all blockchain interactions are mocked:
-
-### Mock ENS Profiles
-- `alex.eth` — Arbitrum, USDC, Aave Vault
-- `maya.eth` — Base, ETH, no vault
-- `jake.eth` — Polygon, USDT, Uniswap LP Pool
-- `sarah.eth` — Ethereum, WETH, Lido Restake
-
-### Mock Wallet
-- Connected as `myname.eth` (0x9Abc...)
-- Balances: 2.5 ETH (Ethereum), 450 USDC (Arbitrum), 1200 MATIC (Polygon), 100 USDT (Base)
-
-### Mock LI.FI Route
-- 1.5 second loading delay (simulates LI.FI API call)
-- Returns a full route card with:
-  - Route steps shown as a visual pipeline: [Swap] → [Bridge] → [Deposit]
-  - Which DEX is used for the swap (e.g. Uniswap V3)
-  - Which bridge is used (e.g. Stargate)
-  - Gas cost breakdown per step
-  - Total slippage (0.5%) and estimated output amount
-  - Estimated time (12–45s)
-- On execution: each step in the pipeline lights up one by one with a 1-second delay
-- Shows per-step tx hashes in the receipt (all fake)
-
-### Mock Transaction Receipt
-- Fake tx hash (0xabc123...)
-- Full summary: from, to, route, amount, time
+- Two-column layout
+- Left: Configuration form
+  - Chain selector (visual buttons)
+  - Token input
+  - Advanced: Vault address input
+- Right: Live preview
+  - Shows how others see your profile
+  - Updates in real-time as you type
 
 ---
 
-## 11. What Makes Kite Stand Out
+## 📁 Project Structure
 
-Most cross-chain DeFi tools treat the problem as "how do I move token A to chain B." Kite reframes it as "how do I send value to a person." That shift puts ENS at the center — not as a nice-to-have label, but as the actual routing and intent layer. LI.FI then becomes the execution engine that fulfills that intent.
+```
+kite-finance/
+├── Root Configuration (13 files)
+│   ├── .env.local
+│   ├── .eslintrc.json
+│   ├── .gitignore
+│   ├── next.config.js
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── postcss.config.js
+│   ├── tailwind.config.ts
+│   ├── tsconfig.json
+│   ├── README.md
+│   ├── LICENSE
+│   └── vercel.json
+│
+├── app/ (Application Routes)
+│   ├── layout.tsx
+│   ├── page.tsx (Home)
+│   ├── Providers.tsx
+│   ├── globals.css
+│   │
+│   ├── api/
+│   │   └── tokens/
+│   │       └── balances/
+│   │           └── route.ts
+│   │
+│   ├── history/
+│   │   └── page.tsx
+│   │
+│   ├── profile/
+│   │   └── page.tsx
+│   │
+│   └── send/
+│       └── [ensname]/
+│           └── page.tsx
+│
+├── components/ (UI Components)
+│   ├── animations/
+│   │   └── KiteBackground.tsx
+│   │
+│   ├── home/
+│   │   ├── ENSSearch.tsx
+│   │   ├── RecentActivity.tsx
+│   │   └── WalletInfo.tsx
+│   │
+│   ├── layout/
+│   │   ├── Header.tsx
+│   │   └── Footer.tsx
+│   │
+│   ├── profile/
+│   │   ├── ENSProfileCard.tsx
+│   │   └── ProfileSetup.tsx
+│   │
+│   ├── providers/
+│   │   ├── ToastProvider.tsx
+│   │   └── WagmiProvider.tsx
+│   │
+│   ├── swap/
+│   │   ├── AmountInput.tsx
+│   │   ├── ConfirmTransaction.tsx
+│   │   ├── RouteDisplay.tsx
+│   │   ├── SwapFlow.tsx
+│   │   ├── TokenSelectorInline.tsx
+│   │   └── TransactionReceipt.tsx
+│   │
+│   └── ui/
+│       ├── Button.tsx
+│       ├── Card.tsx
+│       ├── Input.tsx
+│       ├── LoadingSpinner.tsx
+│       ├── Modal.tsx
+│       └── Toast.tsx
+│
+├── hooks/ (Custom React Hooks)
+│   ├── useBlockchainHistory.ts
+│   ├── useENSProfile.tsx
+│   ├── useENSWrite.tsx
+│   ├── useLifiExecute.tsx
+│   ├── useLifiRoute.tsx
+│   ├── useTokenBalance.tsx
+│   ├── useTokenPrice.tsx
+│   └── useTransactionHistory.ts
+│
+├── lib/ (Utilities & Configuration)
+│   ├── chains/
+│   │   ├── chainConfig.ts
+│   │   └── supportedChains.ts
+│   │
+│   ├── contracts/
+│   │   ├── erc20.ts
+│   │   └── vault.ts
+│   │
+│   ├── ens/
+│   │   └── textRecords.ts
+│   │
+│   ├── lifi/
+│   │   ├── config.ts
+│   │   └── types.ts
+│   │
+│   ├── transaction/
+│   │   └── formatters.ts
+│   │
+│   ├── utils/
+│   │   ├── formatters.ts
+│   │   └── validators.ts
+│   │
+│   └── vaults/
+│       └── isValidVault.ts
+│
+├── types/ (TypeScript Type Definitions)
+│   ├── chain.ts
+│   ├── ens.ts
+│   ├── token.ts
+│   └── transaction.ts
+│
+├── contracts/ (Smart Contract ABIs)
+│   ├── ERC20.json
+│   └── Vault.json
+│
+└── public/ (Static Assets)
+    ├── favicon.ico
+    ├── logo.svg
+    └── images/
+        ├── chains/
+        │   ├── ethereum.svg
+        │   ├── base.svg
+        │   ├── arbitrum.svg
+        │   └── polygon.svg
+        └── tokens/
+            ├── eth.svg
+            ├── usdc.svg
+            └── dai.svg
+```
 
-The result is something that feels less like a DeFi protocol and more like a payment app — type a name, send value, done. But under the hood, it is orchestrating multi-step cross-chain DeFi workflows via LI.FI Composer, and storing structured intent via ENS text records.
-
-On the LI.FI side specifically, what sets Kite apart is that it uses LI.FI Composer to its fullest potential. Most integrations use LI.FI for a simple swap or a simple bridge. Kite uses it for the full three-step pipeline — swap, bridge, and contract call — every single time. The contract call is not an edge case; it is the default. Every route ends with a vault deposit, LP provision, or restaking action. That is the core of what LI.FI Composer enables, and Kite is built entirely around it.
-
-Additionally, Kite does not hardcode routes or destinations. The destination is always read dynamically from ENS. This means LI.FI is asked to solve a different routing problem every time — different source token, different source chain, different destination chain, different vault contract. LI.FI's ability to automatically find the best DEX and bridge combination for any given input/output pair is what makes this dynamic routing possible at scale.
+**Total File Count:** ~80 TypeScript/React files
 
 ---
 
-## 12. Submission Checklist
+## 🚀 Getting Started
 
-- [ ] Working frontend (web) that judges can click through
-- [ ] Full Send & Swap flow end to end (ENS lookup → route → execute → receipt)
-- [ ] My Profile page (ENS text record setup)
-- [ ] At least 2 EVM chains in the user journey
-- [ ] LI.FI SDK/API used for cross-chain actions
-- [ ] ENS text records used for DeFi preferences (not just name display)
-- [ ] GitHub repository with all code (open source)
-- [ ] Video demo walkthrough of the full project
+### Prerequisites
+- Node.js 18+
+- Wallet with ETH for gas
+- ENS name (for receiving)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/kite-finance.git
+cd kite-finance
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Add your API keys (see below)
+
+# Run development server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+### Environment Variables
+
+```env
+# WalletConnect (Required)
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+
+# Alchemy API Keys (Required for token balances)
+NEXT_PUBLIC_ALCHEMY_API_KEY=your_alchemy_key
+
+# Block Explorers (Required for transaction history)
+NEXT_PUBLIC_ETHERSCAN_API_KEY=your_etherscan_key
+NEXT_PUBLIC_BASESCAN_API_KEY=your_basescan_key
+NEXT_PUBLIC_ARBISCAN_API_KEY=your_arbiscan_key
+NEXT_PUBLIC_POLYGONSCAN_API_KEY=your_polygonscan_key
+```
 
 ---
 
-*Kite — Send value to anyone. Just type a name.*
+## 📊 Supported Assets
+
+### Chains
+- **Ethereum** (Chain ID: 1)
+- **Base** (Chain ID: 8453)
+- **Arbitrum** (Chain ID: 42161)
+- **Polygon** (Chain ID: 137)
+
+### Tokens (Per Chain)
+- **Ethereum:** ETH, USDC, DAI, WETH
+- **Base:** ETH, USDC, DAI
+- **Arbitrum:** ETH, USDC, DAI
+- **Polygon:** MATIC, USDC, DAI
+
+### Vaults
+- **Aave V3** (all chains)
+- **Morpho** (Ethereum, Base)
+- **Spark Protocol** (Ethereum, Base)
+- **Any ERC-4626 Vault** (custom addresses)
+
+---
+
+## 🔐 Security Considerations
+
+- **ENS Text Records:** Public and readable by anyone, but only writable by the ENS owner
+- **Vault Validation:** Optional on-chain validation to ensure deposit target is a valid vault
+- **Slippage Protection:** Configurable slippage tolerance with warnings for large changes
+- **Transaction Simulation:** LI.FI simulates routes before execution
+- **Infinite Approval:** Disabled by default for security
+- **Error Handling:** Graceful failures with clear user messaging
+
+---
+
+## 🛠️ Development
+
+### Key Files
+
+- **`hooks/useLifiRoute.tsx`**: Fetches optimal routes using LI.FI API, handles vault deposits via `getQuote()`
+- **`hooks/useLifiExecute.tsx`**: Executes routes using LI.FI SDK, tracks progress per step
+- **`hooks/useENSProfile.tsx`**: Reads ENS text records to fetch recipient preferences
+- **`hooks/useENSWrite.tsx`**: Writes preferences to ENS text records (multicall)
+- **`components/swap/SwapFlow.tsx`**: Main orchestration component for the send flow
+- **`lib/lifi/types.ts`**: TypeScript types and route formatting utilities
+
+### Testing
+
+```bash
+# Run type checks
+npm run type-check
+
+# Run linter
+npm run lint
+
+# Build for production
+npm run build
+```
+
+### Deployment
+
+```bash
+# Deploy to Vercel
+vercel
+
+# Or push to main branch (auto-deploys if connected)
+git push origin main
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Code Style
+- TypeScript for all code
+- ESLint + Prettier for formatting
+- Functional components with hooks
+- Descriptive variable names
+- Comments for complex logic
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **LI.FI** for providing the cross-chain execution infrastructure
+- **ENS** for enabling human-readable blockchain addresses and custom text records
+- **Wagmi** for the excellent React hooks for Ethereum
+- **Vercel** for hosting and deployment
+
+---
+
+## 📞 Contact
+
+- **Website:** [kite-lifi.vercel.app](https://kite-lifi.vercel.app/)
+
+
+
+---
+
+**Built with ❤️ for the cross-chain DeFi future**
+
+*Kite Finance — Send value to anyone, anywhere. Just type a name.*

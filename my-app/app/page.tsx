@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { ENSSearch } from '@/components/home/ENSSearch';
 import { ENSProfileCard } from '@/components/profile/ENSProfileCard';
 import { KiteBackground } from '@/components/animations/KiteBackground';
@@ -22,7 +23,6 @@ export default function Home() {
 
   const handleSendToProfile = () => {
     if (searchedName) {
-      // Navigate to send page with ENS name
       router.push(`/send/${encodeURIComponent(searchedName)}`);
     }
   };
@@ -31,9 +31,8 @@ export default function Home() {
     <>
       <KiteBackground />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
-        {/* Hero Section - DeFi & Multi-Vault Focused */}
+        {/* Hero Section */}
         <div className="max-w-4xl mx-auto text-center mb-24 relative">
-          {/* Subtle yellow radial glow background */}
           <div className="absolute inset-0 bg-gradient-radial from-cyber-yellow/10 via-transparent to-transparent blur-3xl -z-10"></div>
 
           {/* Badge - Powered by LI.FI */}
@@ -59,38 +58,97 @@ export default function Home() {
             from any token, any chain — in one click.
           </p>
 
-          {/* Supported Protocols Row */}
+          {/* Supported Protocols Row with Icons */}
           <div className="flex items-center justify-center gap-3 mb-8 flex-wrap">
-            <div className="px-3 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
-              <span className="text-sm font-medium text-charcoal">🌊 Aave</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://cryptologos.cc/logos/aave-aave-logo.png?v=040"
+                  alt="Aave"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+              <span className="text-sm font-medium text-charcoal">Aave</span>
             </div>
-            <div className="px-3 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
-              <span className="text-sm font-medium text-charcoal">🔷 Morpho</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://s2.coinmarketcap.com/static/img/coins/64x64/34104.png"
+                  alt="Morpho"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+              <span className="text-sm font-medium text-charcoal">Morpho</span>
             </div>
-            <div className="px-3 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
-              <span className="text-sm font-medium text-charcoal">⚡ Spark</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://pbs.twimg.com/profile_images/1643941027898613760/gyhYEOCE_400x400.jpg"
+                  alt="Spark"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+              <span className="text-sm font-medium text-charcoal">Spark</span>
             </div>
-            <div className="px-3 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
+            <div className="px-4 py-2 bg-white/80 backdrop-blur-sm border border-silver rounded-lg shadow-soft hover:shadow-md transition-shadow">
               <span className="text-sm font-medium text-charcoal">+ Any Vault</span>
             </div>
           </div>
 
-          {/* Supported Chains Row */}
+          {/* Supported Chains Row with Icons */}
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg hover:border-blue-500/40 transition-colors">
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-500"></div>
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=040"
+                  alt="Ethereum"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
               <span className="text-xs md:text-sm font-medium text-charcoal">Ethereum</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg hover:border-blue-500/40 transition-colors">
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500"></div>
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://avatars.githubusercontent.com/u/108554348?s=280&v=4"
+                  alt="Base"
+                  fill
+                  className="object-contain rounded-full"
+                  unoptimized
+                />
+              </div>
               <span className="text-xs md:text-sm font-medium text-charcoal">Base</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500/10 to-pink-500/10 border border-blue-500/20 rounded-lg hover:border-blue-500/40 transition-colors">
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-pink-500"></div>
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://cryptologos.cc/logos/arbitrum-arb-logo.svg?v=040"
+                  alt="Arbitrum"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
               <span className="text-xs md:text-sm font-medium text-charcoal">Arbitrum</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg hover:border-purple-500/40 transition-colors">
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></div>
+              <div className="relative w-5 h-5">
+                <Image
+                  src="https://cryptologos.cc/logos/polygon-matic-logo.svg?v=040"
+                  alt="Polygon"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
               <span className="text-xs md:text-sm font-medium text-charcoal">Polygon</span>
             </div>
           </div>
@@ -200,7 +258,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Example Flow */}
               <div className="mt-10 p-6 bg-white/70 backdrop-blur-sm border border-silver rounded-lg">
                 <p className="text-slate text-center leading-relaxed">
                   <strong className="text-charcoal">Example:</strong> USDC on Polygon →
